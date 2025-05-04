@@ -1,0 +1,2 @@
+Defaults:%podman-sudoers secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
+%podman-sudoers ALL=(ALL) NOPASSWD: /usr/local/bin/provision-podman-nologin.sh, /usr/bin/podman *, /usr/local/bin/podman *

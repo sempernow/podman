@@ -1,0 +1,46 @@
+# Ansible role task: provision a dedicated rootless Podman user account
+# Usage: include this task with vars:
+#   podman_user: podman-jdoe
+#   podman_home: /work/home/podman-jdoe
+
+- name: Ensure Podman service user exists
+  ansible.builtin.user:
+    name: "{{ podman_user }}"
+    home: "{{ podman_home }}"
+    shell: /bin/bash
+    create_home: true
+
+- name: Enable lingering for the user
+  ansible.builtin.command:
+    cmd: "loginctl enable-linger {{ podman_user }}"
+  changed_when: false
+  become: true
+
+- name: Ensure /etc/subuid has entry for user
+  ansible.builtin.lineinfile:
+    path: /etc/subuid
+    line: "{{ podman_user }}:100000:65536"
+    create: true
+    state: present
+
+- name: Ensure /etc/subgid has entry for user
+  ansible.builtin.lineinfile:
+    path: /etc/subgid
+    line: "{{ podman_user }}:100000:65536"
+    create: true
+    state: present
+
+- name: Set SELinux context for custom home base (optional)
+  ansible.builtin.command:
+    cmd: "semanage fcontext -a -t user_home_dir_t '{{ podman_home }}(/.*)?'"
+  ignore_errors: true
+  become: true
+
+- name: Restore SELinux context
+  ansible.builtin.command:
+    cmd: "restorecon -Rv '{{ podman_home }}'"
+  become: true
+
+- name: Display provision result
+  ansible.builtin.debug:
+    msg: "✅ User {{ podman_user }} provisioned for rootless Podman."
