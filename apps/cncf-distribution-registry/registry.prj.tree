@@ -1,0 +1,9 @@
+
+/srv/registry/
+├── data/
+├── nginx/
+│   └── conf.d/registry.conf
+└── ssl/
+    ├── registry.crt
+    └── registry.key
+

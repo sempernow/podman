@@ -1,0 +1,41 @@
+---
+## curl -k https://lifeboat.oci.lime.lan/v2/_catalog
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: registry-pod
+spec:
+  containers:
+    - name: registry
+      image: docker.io/library/registry 
+      volumeMounts:
+        - name: registry-data
+          mountPath: /var/lib/registry
+      ports:
+        - containerPort: 5000
+
+    - name: nginx
+      image: docker.io/library/nginx:alpine
+      volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+        - name: nginx-ssl
+          mountPath: /etc/nginx/ssl
+      ports:
+        - containerPort: 443
+  # Env: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+  volumes:
+    - name: registry-data
+      hostPath:
+        path: /path/to/registry/data
+        type: Directory
+    - name: nginx-config
+      hostPath:
+        path: /path/to/nginx/conf.d
+        type: Directory
+    - name: nginx-ssl
+      hostPath:
+        path: /path/to/nginx/ssl
+        type: Directory
+
