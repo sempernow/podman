@@ -1,4 +1,4 @@
-# Podman : Rootless Containers | [Chat 2](https://chatgpt.com/share/673a11b8-165c-8009-8412-2dec016a61b7 "ChatGPT.com") | [Chat 3](https://chatgpt.com/share/6700711a-5b14-8009-82f9-decd11ce4f0c "ChatGPT.com")
+# Podman : Rootless Containers | [Chat 2](https://chatgpt.com/share/673a11b8-165c-8009-8412-2dec016a61b7 "ChatGPT.com") | [Chat 3](https://chatgpt.com/share/6700711a-5b14-8009-82f9-decd11ce4f0c "ChatGPT.com") | [Chat 3](https://chatgpt.com/share/6817bc76-62bc-8009-8003-baf013ec9781)
 
 >In rootless Podman, the container’s root user is actually a non-root user on the host, mapped via user namespaces.
 
