@@ -1,5 +1,4 @@
 **/*.log
-**/*.url
 **/*.html
 **/LOG.*
 **/logs/*
