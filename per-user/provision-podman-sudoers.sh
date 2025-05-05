@@ -36,6 +36,7 @@ getent group $scope || groupadd -r $scope
 ## 2. sudo -u podman-$USER podman ...
 [[ -f $sudoers ]] || tee $sudoers <<EOH
 Defaults:%$scope secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
+Defaults:%$scope env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
 %$scope ALL=(ALL) NOPASSWD: $script, /usr/bin/podman *, /usr/local/bin/podman *
 EOH
 

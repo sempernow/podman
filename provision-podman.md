@@ -1,46 +1,105 @@
 # Rootless Podman
 
+>Provision a Podman environment for unprivileged, non-local (AD) users on RHEL.
+
+## Overview
+
 There are many corners to this envelope:
 
-- Per-user configuration is required: 
+- Lacking privilege, a per-user (rootless) configuration is required: 
     - Podman does not configure remote (AD) users.
-    - Podman creates per-user namespaces using subids only if:
-        - User is local and regular (non-system), and created after Podman is installed.
+    - Podman creates per-user namespaces using subids only if 
+      user is local, regular (non-system), and created after Podman is installed.
     - An active fully-provisioned login shell is required to initialized a rootless Podman session.
         - `HOME` is set.
         - `XDG_RUNTIME_DIR` is set.
         - DBus Session Bus starts.
-            - Provides the user-level IPC. 
+            - Provides user-level IPC. 
     - Linux system users, "`adduser --system ...`", 
       are not provisioned an active login shell, regardless.
-    - Running containers under rootless do not survive the user session unless 
-      Linger is enabled for the user: `sudo loginctl enable-linger <username>`. 
-      That is also required for Podman's systemd integration schemes.
-    - The per-user subid ranges (`subuid`, `subgid`) must be unique per host, 
-        so any manual method must assure that across all users.
-- Workarounds for AD users is to provision a  
-  __logically-mapped local user__ (`podman-$USER`) per user:
-    1. __Service account__
-        - No login shell (`adduser --shell /sbin/nologin ...`)
-        - This provides only __partial functionality__ of rootless Podman environment 
-            unless DBus and other environment settings are explicitly configured and managed.
+    - Containers running under a rootless process do not survive the user session unless 
+      Linger is enabled for that user: `sudo loginctl enable-linger <username>`. 
+        - Also required for Podman's systemd integration schemes.
+    - The per-user subid ranges (`subuid`, `subgid`) must be unique per host.
+- Workarounds for AD users (__`$USER`__) is to provision a 
+  logically-mapped __local user__ (__`podman-$USER`__)   
+  to serve as their Podman service account:
+    1. __No login shell__ (`adduser --shell /sbin/nologin ...`)
         - User must work in a __neutral working directory__:
-            - Not that of the service account `USER`.
-            - Not that of the `SUDO_USER`.
+            - Not that of the service account `USER` (where `SUDO_USER` would fail AuthZ).
+            - Not that of the `SUDO_USER` (where `USER` would fail Authz).
+        - This provides only __partial functionality__ of rootless Podman environment  
+            __unless__ DBus and other environment settings are __explicitly declared__:
             ```bash
             cd /tmp
-            sudo -u podman-$USER podman ...
+            sudo -u podman-$USER \
+                HOME=/home/podman-$USER \
+                XDG_RUNTIME_DIR=/run/user/$(id -u podman-$USER) \
+                DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$USER)/bus \
+                podman ...
             ```
-    2. __Regular-user account__ (`podman-$USER`) 
-        - Login shell (`adduser --shell /bin/bash ...`). 
-        - This provides a __fully functional__ rootless Podman environment.
-        - Secure by locked password, so AuthN/AuthZ (identity/access) 
-         is *exclusively* key-based via local SSH tunnel.
+            - [`podman.sh`](per-user/podman.sh)
+    2. __Login shell__ (`adduser --shell /bin/bash ...`)
+        - Using SSH shell to trigger an active login session,  
+        which provides a __fully functional__ rootless Podman environment.
             ```bash
             ssh -i $key podman-$USER@localhost [podman ...]
             ```
+            - Secure by locked password, so AuthN  is *exclusively* key-based via local SSH tunnel.
 
 - Privileged ports, e.g., 80 (HTTP) and 443 (HTTPS), are not allowed.
+
+## Local-user Service Account (per AD user)
+
+## 1. __No login shell__
+
+To allow for self-provisioning, the AD user must be member of `podman-sudoers` group, 
+which may be either AD or local.
+
+1. [`provision-podman-sudoers.sh`](per-user/provision-podman-sudoers.sh)  
+  Install sudoers drop-in scoped to local group: `podman-sudoers`
+    ```bash
+    u2@a0 # sudoer
+    ☩ sudo bash provision-podman-sudoers.sh
+    ```
+1. [`provision-podman-nologin.sh`](per-user/provision-podman-nologin.sh)  
+  Provision rootless Podman environment for an AD user 
+    ```bash
+    u0@a0 # unprivileged user
+    ☩ sudo /usr/local/bin/provision-podman-nologin.sh
+    ```
+3. Use it
+    ```bash
+    podman(){
+        scratch=/work/podman/scratch/$USER # The preferred neutral workspace
+        [[ $(pwd) =~ $scratch ]] ||
+            cd $scratch ||
+                cd /tmp/$USER
+
+        sudo -u podman-$USER \
+            HOME=/home/podman-$USER \
+            XDG_RUNTIME_DIR=/run/user/$(id -u podman-$USER) \
+            DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$USER)/bus \
+            /usr/bin/podman "$@"
+    }
+    podman info
+    ```
+
+podman(){
+    scratch=/work/podman/scratch/$USER # The preferred neutral workspace
+    [[ $(pwd) =~ $scratch ]] ||
+        cd $scratch ||
+            cd /tmp/$USER
+
+sudo -u podman-$USER \
+    HOME=/home/podman-$USER \
+    XDG_RUNTIME_DIR=/run/user/$(id -u podman-$USER) \
+    DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$USER)/bus \
+    /usr/bin/podman "$@"
+}
+podman info
+
+```
 
 ## ❌ Common Service Account
 
