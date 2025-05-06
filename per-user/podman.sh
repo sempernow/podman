@@ -18,8 +18,9 @@ scratch=/work/podman/scratch/$USER # The preferred neutral workspace
         cd /tmp/$USER
 
 #sudo -u podman-$USER /usr/bin/podman "$@"
+
 sudo -u podman-$USER \
-    HOME=/home/podman-$USER \
+    HOME=/work/podman/home/$USER \
     XDG_RUNTIME_DIR=/run/user/$(id -u podman-$USER) \
     DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$USER)/bus \
     /usr/bin/podman "$@"
