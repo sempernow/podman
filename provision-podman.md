@@ -51,7 +51,7 @@ There are many corners to this envelope:
 
 ## Local-user Service Account (per AD user)
 
-## 1. __No login shell__
+### 1. __No login shell__
 
 To allow for self-provisioning, the AD user must be member of `podman-sudoers` group, 
 which may be either AD or local.
@@ -85,21 +85,9 @@ which may be either AD or local.
     podman info
     ```
 
-podman(){
-    scratch=/work/podman/scratch/$USER # The preferred neutral workspace
-    [[ $(pwd) =~ $scratch ]] ||
-        cd $scratch ||
-            cd /tmp/$USER
+### 2. __Login shell__
 
-sudo -u podman-$USER \
-    HOME=/home/podman-$USER \
-    XDG_RUNTIME_DIR=/run/user/$(id -u podman-$USER) \
-    DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$USER)/bus \
-    /usr/bin/podman "$@"
-}
-podman info
-
-```
+TODO
 
 ## ❌ Common Service Account
 
