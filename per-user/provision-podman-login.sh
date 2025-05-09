@@ -89,7 +89,7 @@ grep $u /etc/subuid && grep $u /etc/subgid || {
 ## 1. Provision $subject (once) for SSH key-based AuthN against $u.
 key="/home/$subject/.ssh/$app"
 [[ -f $key ]] ||
-    ssh-keygen -t ecdsa -b 384 -C "$subject@$(hostname)" -N '' -f $key
+    ssh-keygen -t ecdsa -b 521 -C "$subject@$(hostname)" -N '' -f $key
 pub="$(cat $key.pub)" || {
     echo "  ERR : Public-key file is missing or empty : See '$key'"
 
