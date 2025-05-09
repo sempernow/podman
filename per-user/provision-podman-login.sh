@@ -59,7 +59,7 @@ id -un $local_user >/dev/null 2>&1 || {
 }
 #usermod -s /bin/bash $local_user
 echo "$app" |passwd $local_user --stdin
-## Disable local login, so access is exclusively by SSH tunnel with key-based AuthN.
+## Disable local login, so AuthN/AuthZ is exclusively by SSH key/tunnel.
 passwd -l $local_user
 
 # Allow $domain_user to read files of $local_user 
