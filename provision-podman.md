@@ -84,16 +84,26 @@ which may be either AD or local.
 
     ☩ podman run --rm --volume /work/podman/home/$USER:/mnt/home alpine sh -c '
         ls /mnt/home
-        touch /mnt/home/a
+        touch /mnt/home/test-write-access
         ls /mnt/home
     '
-    a
+    test-write-access
+
+    ☩ podman run --rm --volume /:/mnt/root alpine touch /mnt/root/test-write-access
+    touch: /mnt/root/test-write-access: Permission denied
+
+    ☩ podman run --rm --volume /:/mnt/root alpine whoami
+    root
+
+    ☩ podman run --rm --volume /:/mnt/root alpine ls -hl /mnt/root
+    ...
+    drwxrwxrwt   17 nobody   nobody      4.0K May  9 19:35 tmp
+    drwxr-xr-x   12 nobody   nobody       144 Dec 15 03:23 usr
+    drwxr-xr-x   20 nobody   nobody      4.0K Dec 22 22:28 var
+    drwxr-xr-x    3 nobody   nobody        20 May  3 20:28 work
+
     ```
-
-pushd /work/podman/home/u0 &&
-    sudo -u podman-u0 /usr/bin/podman info &&
-        popd
-
+    - User is `root` at container, but *not* at host.
 
 ### 2. __Login shell__
 

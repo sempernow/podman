@@ -60,8 +60,8 @@ id -un $local_user >/dev/null 2>&1 || {
     useradd --create-home --home-dir $d --shell /sbin/nologin $local_user
     loginctl enable-linger $local_user
 }
-ps=podman-sudoers
-groups $domain_user |grep $ps || usermod -aG $ps $domain_user
+sudoers=podman-sudoers
+groups $domain_user |grep $sudoers || usermod -aG $sudoers $domain_user
 
 ## Verify that $local_user is provisioned
 restorecon -Rv $alt/home # Apply any resulting SELinux fcontext changes (again, just to be sure).
@@ -87,11 +87,19 @@ grep $local_user /etc/subuid && grep $local_group /etc/subgid || {
 # chown -R $domain_user:$local_user $scratch
 # chmod 755 $scratch
 
-#sudo su $local_user podman system migrate
+#sudo su -u $local_user podman system migrate
 
-pushd $scratch &&
-    sudo -u $local_user /usr/bin/podman info |tee podman.info.yaml &&
-        popd
+## If login shell
+#sudo -u $local_user podman run busybox hostname
 
-#sudo -u $local_user podman run busybox sh -c 'echo === Hello from container $(hostname -f)'
+
+# pushd $scratch &&
+#     sudo -u $local_user /usr/bin/podman info |tee podman.info.yaml &&
+#         popd
+
+podman run --rm --volume $alt_home:/mnt/home alpine sh -c '
+    ls /mnt/home
+    touch /mnt/home/test-file-write-access
+    ls /mnt/home
+'
 
