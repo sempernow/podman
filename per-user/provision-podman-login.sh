@@ -2,7 +2,10 @@
 ###########################################################################
 # Provision a stable rootless Podman environment for an AD user
 # by creating a locked local user account for AD user to run as,
-# only by key-based AuthN via SSH tunnel.
+# only by key-based AuthN in an SSH tunnel.
+#
+# ARGs: [DOMAIN_USER] (Default is SUDO_USER)
+#
 # - Idempotent
 ###########################################################################
 
@@ -13,32 +16,32 @@
     exit 11
 }
 
-[[ $1 ]] && subject=$1 || subject=$SUDO_USER
+[[ $1 ]] && domain_user=$1 || domain_user=$SUDO_USER
 
 app=podman
 alt=/work/$app
-d=$alt/home/$subject
-u=$app-$subject
-g=$u
+alt_home=$alt/home/$domain_user
+local_user=$app-$domain_user
+local_group=$local_user
 
-grep -e "^$subject" /etc/passwd && {
-    echo "  This script provisions a local account, '$u', only for a *non-local* (AD) user."
-    echo "  However, this subject user, '$subject', is local. (See /etc/passwd)"
+grep -e "^$domain_user" /etc/passwd && {
+    echo "  This script creates a local account, '$local_user', only for a *non-local* (AD domain) user."
+    echo "  However, this user, '$domain_user', is *local*."
     echo "  Local users are advised to run (rootless) Podman from their existing local account."
     
     exit 22
 }
 
+seVerify(){
+    ## Verify SELinux fcontext equivalence : "/home = $alt/home"
+    semanage fcontext --list |grep "$alt" |grep "$alt/home = /home"
+}
+export -f seVerify
+
 ## Create a local user account having a non-standard (alt) HOME which SELinux treats as it would those of /home
 ##   Attempts to configure a *system* user (-r, --system) for rootless podman fail by many layered modes.
 ##   Podman expects and relies upon numerous adjacent services and processes,
 ##   available only to *regular* local user accounts, when provisioning per-user rootless containers.
-seVerify(){
-    ## Verify SELinux fcontext equivalence : "/home = $alt/home"
-    semanage fcontext --list | grep "$alt" |grep "$alt/home = /home"
-}
-export -f seVerify
-
 mkdir -p $alt/home
 seVerify || {
     ## Force SELinux to accept SELinux declarations REGARDLESS of current state of SELinux objects at target(s)
@@ -49,66 +52,66 @@ seVerify || {
     restorecon -Rv $alt/home # Apply the above rule (now).
 }
 
-## Create user and group for use as local account for $subject
-id -un $u >/dev/null 2>&1 || {
-    useradd --create-home --home-dir $d --shell /bin/bash $u
-    loginctl enable-linger $u
+## Create user and group for use as local account for $domain_user
+id -un $local_user >/dev/null 2>&1 || {
+    useradd --create-home --home-dir $alt_home --shell /bin/bash $local_user
+    loginctl enable-linger $local_user
 }
-#usermod -s /bin/bash $u
-echo "$app" |passwd $u --stdin
+#usermod -s /bin/bash $local_user
+echo "$app" |passwd $local_user --stdin
 ## Disable local login, so access is exclusively by SSH tunnel with key-based AuthN.
-passwd -l $u
+passwd -l $local_user
 
-# Allow $subject to read files of $u 
-#groups $subject |grep $u || usermod -aG $u $subject 
-#chmod 770 $d
+# Allow $domain_user to read files of $local_user 
+#groups $domain_user |grep $local_group || usermod -aG $local_group $domain_user 
+#chmod 770 $alt_home
 
-## Verify that $u is provisioned
+## Verify that $local_user is provisioned
 restorecon -Rv $alt/home # Apply any resulting SELinux fcontext changes (again, just to be sure).
+ls -ZRhl $alt
 seVerify || {
     echo " ERR : FAILed @ SELinux : semanage fcontext"
 
     exit 66
 }
-ls -ZRhl $alt
-grep $u /etc/subuid && grep $u /etc/subgid || {
+grep $local_user /etc/subuid && grep $local_group /etc/subgid || {
     echo "  ERR : FAILed @ subids"
 
     exit 77
 }
 
-#sudo su $u podman system migrate
+#sudo su $local_user podman system migrate
 
 ## Podman rootless scheme requires an active, full-loaded user session.
 ## Start an SSH login session : Locally via the loopback interface:
 ## - Starts per-user systemd session
 ## - XDG_RUNTIME_DIR, /run/user/<UID>, is created
 ## - DBus Session Bus is spawned
-## This allows for cryptographically-secured (key-based/passwordless) AuthN.
+## This allows key-based passwordless AuthN.
 ##
-## 1. Provision $subject (once) for SSH key-based AuthN against $u.
-key="/home/$subject/.ssh/$app"
+## 1. Provision $domain_user (once) for SSH key-based AuthN against $local_user.
+key="/home/$domain_user/.ssh/$app"
 [[ -f $key ]] ||
-    ssh-keygen -t ecdsa -b 521 -C "$subject@$(hostname)" -N '' -f $key
+    ssh-keygen -t ecdsa -b 521 -C "$domain_user@$(hostname)" -N '' -f $key
 pub="$(cat $key.pub)" || {
     echo "  ERR : Public-key file is missing or empty : See '$key'"
 
     exit 88
 }
-uhome="$alt/home/$subject"
-auth=$uhome/.ssh/authorized_keys
+localhome="$alt/home/$domain_user"
+auth=$localhome/.ssh/authorized_keys
 [[ $(grep "$pub" $auth) ]] || {
-    mkdir -p $uhome/.ssh
-    chmod 0700 $uhome/.ssh
+    mkdir -p $localhome/.ssh
+    chmod 0700 $localhome/.ssh
     echo "$pub" |tee -a $auth
     chmod 0600 $auth
-    chown -R $u:$u $uhome/.ssh
+    chown -R $local_user:$local_user $localhome/.ssh
 }
-## 2. Verify rootless Podman config and AuthN/AuthZ elsewise for $subject via local SSH tunnel as $u.
-#type -t yq && ssh -i $key $u@localhost podman info |yq .store |yq ' . | {"store": { "configFile": .configFile,"graphRoot":.graphRoot, "volumePath": .volumePath}}'
-ssh -i $key $u@localhost whoami &&
-    loginctl user-status $u |grep -e State: -e Linger: &&
-        ssh -i $key $u@localhost podman network ls &&
-            ssh -i $key $u@localhost podman version  &&
+## 2. Verify rootless Podman config and AuthN/AuthZ elsewise for $domain_user via local SSH tunnel as $local_user.
+#type -t yq && ssh -i $key $local_user@localhost podman info |yq .store |yq ' . | {"store": { "configFile": .configFile,"graphRoot":.graphRoot, "volumePath": .volumePath}}'
+ssh -i $key $local_user@localhost whoami &&
+    loginctl user-status $local_user |grep -e State: -e Linger: &&
+        ssh -i $key $local_user@localhost podman network ls &&
+            ssh -i $key $local_user@localhost podman version  &&
                 echo -e '\nok'
 

@@ -2,9 +2,11 @@
 ####################################################################
 # Provision a stable rootless Podman environment for an AD user
 # by creating a local service account (--shell /sbin/nologin),
-# under which the otherwise unprivileged namesake (AD user)
+# as which the otherwise unprivileged namesake (AD user)
 # may sudo only the set of commands declared at a sudoers file
-# scoped to AD user's group "podman-sudoers".
+# scoped to AD group "podman-sudoers".
+#
+# ARGs: [DOMAIN_USER] (Default is SUDO_USER)
 #
 # - Idempotent
 ####################################################################
@@ -15,33 +17,33 @@
     
     exit 11
 }
-logger "Script run by $SUDO_USER via sudo : $BASH_SOURCE"
+logger "Script run by '$SUDO_USER' via sudo : '$BASH_SOURCE'"
 
-subject=$SUDO_USER
-## Allow admins to select the subject AD user
-[[ $1 ]] && groups $SUDO_USER |grep ad-linux-sudoers && subject=$1
+domain_user=$SUDO_USER
+## Allow domain admins to select the AD user
+[[ $1 ]] && groups $SUDO_USER |grep ad-linux-sudoers && domain_user=$1
 
 app=podman
 alt=/work/$app
-d=$alt/home/$subject
-u=$app-$subject
-g=$u
+alt_home=$alt/home/$domain_user
+local_user=$app-$domain_user
+local_group=$local_user
 
-grep -e "^$subject" /etc/passwd && {
-    echo "  This script provisions a local account, '$app-$subject', for a *non-local* (AD) user."
-    echo "  However, this subject user, '$subject', is *local*. (See /etc/passwd)"
+grep -e "^$domain_user" /etc/passwd && {
+    echo "  This script creates a local account, '$app-$domain_user', for a *non-local* (AD domain) user."
+    echo "  However, this user, '$domain_user', is *local*."
     echo "  Local users are advised to run (rootless) Podman from their existing local account."
 
     exit 22
 }
 
-## Create a local user account having a non-standard (alt) HOME which SELinux treats as it would those of /home
 seVerify(){
     ## Verify SELinux fcontext equivalence : "/home = $alt/home"
-    semanage fcontext --list | grep "$alt" |grep "$alt/home = /home"
+    semanage fcontext --list |grep "$alt" |grep "$alt/home = /home"
 }
 export -f seVerify
 
+## Create a local user account having a non-standard (alt) HOME which SELinux treats as it would those of /home
 mkdir -p $alt/home
 seVerify || {
     ## Force SELinux to accept SELinux declarations REGARDLESS of current state of SELinux objects at target(s)
@@ -54,45 +56,40 @@ seVerify || {
 
 ## Create a *regular* user (and group), having no login shell, for use as the service account.
 ## Podman rootless requires an active login shell (DBus Session Bus, etc.), so fail if --system user.
-id -un $u >/dev/null 2>&1 || {
-    useradd --create-home --home-dir $d --shell /sbin/nologin $u
-    loginctl enable-linger $u
+id -un $local_user >/dev/null 2>&1 || {
+    useradd --create-home --home-dir $d --shell /sbin/nologin $local_user
+    loginctl enable-linger $local_user
 }
 ps=podman-sudoers
-groups $subject |grep $ps || usermod -aG $ps $subject
+groups $domain_user |grep $ps || usermod -aG $ps $domain_user
 
-## Verify that $u is provisioned
+## Verify that $local_user is provisioned
 restorecon -Rv $alt/home # Apply any resulting SELinux fcontext changes (again, just to be sure).
+ls -ZRhl $alt
 seVerify || {
     echo " ERR : FAILed @ SELinux : semanage fcontext"
 
     exit 66
 }
-ls -ZRhl $alt
-grep $u /etc/subuid && grep $u /etc/subgid || {
+grep $local_user /etc/subuid && grep $local_group /etc/subgid || {
     echo "  ERR : FAILed @ subids"
 
     exit 77
 }
 
-seVerify || echo FAILed @ SELinux : semanage fcontext
-ls -ZRhl $alt
-grep $u /etc/subuid
-grep $u /etc/subgid
-
 ## Create "neutral" working directory
-## - Not HOME of $u         : $subject fails AuthZ
-## - Not HOME of $subject   : $u fails AuthZ
-wdir="$alt/scratch/$subject"
-mkdir -p $wdir
-chown -R $subject:$u $wdir
-chmod 755 $wdir
+## - Not HOME of $local_user, where $domain_user would fail AuthZ
+## - Not HOME of $domain_user, where $local_user would fail AuthZ
+scratch="$alt/scratch/$domain_user"
+mkdir -p $scratch
+chown -R $domain_user:$local_user $scratch
+chmod 755 $scratch
 
-#sudo su $u podman system migrate
+#sudo su $local_user podman system migrate
 
-pushd $wdir &&
-    sudo -u $u /usr/bin/podman info |tee podman.info.yaml &&
+pushd $scratch &&
+    sudo -u $local_user /usr/bin/podman info |tee podman.info.yaml &&
         popd
 
-#sudo -u $u podman run busybox sh -c 'echo === Hello from container $(hostname -f)'
+#sudo -u $local_user podman run busybox sh -c 'echo === Hello from container $(hostname -f)'
 
