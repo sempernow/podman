@@ -25,11 +25,8 @@ There are many corners to this envelope:
   logically-mapped __local user__ (__`podman-$USER`__)   
   to serve as their Podman service account:
     1. __No login shell__ (`adduser --shell /sbin/nologin ...`)
-        - User must work in a __neutral working directory__:
-            - Not that of the service account `USER` (where `SUDO_USER` would fail AuthZ).
-            - Not that of the `SUDO_USER` (where `USER` would fail Authz).
-        - This provides only __partial functionality__ of rootless Podman environment  
-            __unless__ DBus and other environment settings are __explicitly declared__:
+        - To provide a full functional rootless Podman environment,
+          these environment settings must be __explicitly declared__:
             ```bash
             cd /tmp
             sudo -u podman-$USER \
@@ -39,13 +36,15 @@ There are many corners to this envelope:
                 podman ...
             ```
             - [`podman.sh`](per-user/podman.sh)
+            - Tight security by locking down allowed commands using a group-scoped sudoers drop-in file.
+                - [`provision-podman-sudoers.sh`](per-user/provision-podman-sudoers.sh)
     2. __Login shell__ (`adduser --shell /bin/bash ...`)
         - Using SSH shell to trigger an active login session,  
         which provides a __fully functional__ rootless Podman environment.
             ```bash
             ssh -i $key podman-$USER@localhost [podman ...]
             ```
-            - Secure by locked password, so AuthN  is *exclusively* key-based via local SSH tunnel.
+            - Secure by locked password, so AuthN/AuthZ is *exclusively* by SSH key/tunnel.
 
 - Privileged ports, e.g., 80 (HTTP) and 443 (HTTPS), are not allowed.
 
@@ -68,9 +67,9 @@ which may be either AD or local.
     u0@a0 # unprivileged user
     ☩ sudo /usr/local/bin/provision-podman-nologin.sh
     ```
-3. Use it
+3. Use it : `u0@a0`
     ```bash
-    podman(){
+    ☩ podman(){
         scratch=/work/podman/scratch/$USER # The preferred neutral workspace
         [[ $(pwd) =~ $scratch ]] ||
             cd $scratch ||
@@ -82,8 +81,19 @@ which may be either AD or local.
             DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$USER)/bus \
             /usr/bin/podman "$@"
     }
-    podman info
+
+    ☩ podman run --rm --volume /work/podman/home/$USER:/mnt/home alpine sh -c '
+        ls /mnt/home
+        touch /mnt/home/a
+        ls /mnt/home
+    '
+    a
     ```
+
+pushd /work/podman/home/u0 &&
+    sudo -u podman-u0 /usr/bin/podman info &&
+        popd
+
 
 ### 2. __Login shell__
 

@@ -78,12 +78,14 @@ grep $local_user /etc/subuid && grep $local_group /etc/subgid || {
 }
 
 ## Create "neutral" working directory
+## Necessary only if HOME is not declared. 
+## That is, if /usr/local/bin/podman wrapper not invoked
 ## - Not HOME of $local_user, where $domain_user would fail AuthZ
 ## - Not HOME of $domain_user, where $local_user would fail AuthZ
-scratch="$alt/scratch/$domain_user"
-mkdir -p $scratch
-chown -R $domain_user:$local_user $scratch
-chmod 755 $scratch
+# scratch="$alt/scratch/$domain_user"
+# mkdir -p $scratch
+# chown -R $domain_user:$local_user $scratch
+# chmod 755 $scratch
 
 #sudo su $local_user podman system migrate
 
