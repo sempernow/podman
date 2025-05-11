@@ -6,23 +6,23 @@
 
 There are many corners to this envelope:
 
-- Lacking privilege, a per-user (rootless) configuration is required: 
+- Lacking privilege, a per-user (rootless) configuration is required:
     - Podman does not configure remote (AD) users.
-    - Podman creates per-user namespaces using subids only if 
+    - Podman creates per-user namespaces using subids only if
       user is local, regular (non-system), and created after Podman is installed.
     - An active fully-provisioned login shell is required to initialized a rootless Podman session.
         - `HOME` is set.
         - `XDG_RUNTIME_DIR` is set.
         - DBus Session Bus starts.
-            - Provides user-level IPC. 
-    - Linux system users, "`adduser --system ...`", 
+            - Provides user-level IPC.
+    - Linux system users, "`adduser --system ...`",
       are not provisioned an active login shell, regardless.
-    - Containers running under a rootless process do not survive the user session unless 
-      Linger is enabled for that user: `sudo loginctl enable-linger <username>`. 
+    - Containers running under a rootless process do not survive the user session unless
+      Linger is enabled for that user: `sudo loginctl enable-linger <username>`.
         - Also required for Podman's systemd integration schemes.
     - The per-user subid ranges (`subuid`, `subgid`) must be unique per host.
-- Workarounds for AD users (__`$USER`__) is to provision a 
-  logically-mapped __local user__ (__`podman-$USER`__)   
+- Workarounds for AD users (__`$USER`__) is to provision a
+  logically-mapped __local user__ (__`podman-$USER`__)
   to serve as their Podman service account:
     1. __No login shell__ (`adduser --shell /sbin/nologin ...`)
         - To provide a full functional rootless Podman environment,
@@ -39,7 +39,7 @@ There are many corners to this envelope:
             - Tight security by locking down allowed commands using a group-scoped sudoers drop-in file.
                 - [`provision-podman-sudoers.sh`](per-user/provision-podman-sudoers.sh)
     2. __Login shell__ (`adduser --shell /bin/bash ...`)
-        - Using SSH shell to trigger an active login session,  
+        - Using SSH shell to trigger an active login session,
         which provides a __fully functional__ rootless Podman environment.
             ```bash
             ssh -i $key podman-$USER@localhost [podman ...]
@@ -52,58 +52,71 @@ There are many corners to this envelope:
 
 ### 1. __No login shell__
 
-To allow for self-provisioning, the AD user must be member of `podman-sudoers` group, 
+To allow for self-provisioning, the AD user must be member of `podman-sudoers` group,
 which may be either AD or local.
 
-1. [`provision-podman-sudoers.sh`](per-user/provision-podman-sudoers.sh)  
-  Install sudoers drop-in scoped to local group: `podman-sudoers`
+#### Admin
+1. [`podman-sudoer-add.sh`](per-user/podman-sudoer-add.sh)
+   Install script allowing members of `ad-domain-users` group
+   to add themselves to `podman-sudoers` group
+    ```bash
+    u2@a0 # sudoer
+    ☩ sudo bash podman-sudoer-add.sh
+    ```
+1. [`provision-podman-sudoers.sh`](per-user/provision-podman-sudoers.sh)
+   Install sudoers drop-in scoped to group `podman-sudoers`
     ```bash
     u2@a0 # sudoer
     ☩ sudo bash provision-podman-sudoers.sh
     ```
-1. [`provision-podman-nologin.sh`](per-user/provision-podman-nologin.sh)  
-  Provision rootless Podman environment for an AD user 
+1. [`provision-podman-nologin.sh`](per-user/provision-podman-nologin.sh)
+   Install the self-provisioning script
+    ```bash
+    u2@a0 # sudoer
+    ☩ sudo install provision-podman-nologin.sh /usr/local/bin/
+    ```
+1. [`podman.sh`](per-user/podman.sh)
+   Install the `podman` wrapper script
+    ```bash
+    u2@a0 # sudoer
+    ☩ sudo install podman.sh /usr/local/bin/podman
+    ```
+
+#### User(s)
+
+Use "__`sudo su - u0`__" if at an admin account.
+
+1. Self provision a fully-functional rootless Podman environment
     ```bash
     u0@a0 # unprivileged user
     ☩ sudo /usr/local/bin/provision-podman-nologin.sh
     ```
-3. Use it : `u0@a0`
+1. Use it to run Podman commands
     ```bash
-    ☩ podman(){
-        scratch=/work/podman/scratch/$USER # The preferred neutral workspace
-        [[ $(pwd) =~ $scratch ]] ||
-            cd $scratch ||
-                cd /tmp/$USER
-
-        sudo -u podman-$USER \
-            HOME=/home/podman-$USER \
-            XDG_RUNTIME_DIR=/run/user/$(id -u podman-$USER) \
-            DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$USER)/bus \
-            /usr/bin/podman "$@"
-    }
-
-    ☩ podman run --rm --volume /work/podman/home/$USER:/mnt/home alpine sh -c '
-        ls /mnt/home
-        touch /mnt/home/test-write-access
-        ls /mnt/home
+    u0@a0 # unprivileged user
+    ☩ podman run --rm --volume $work:/mnt/home alpine sh -c '
+        echo $(whoami)@$(hostname -f)
+        umask 002
+        rm -f /mnt/home/test-write-access-*
+        ls -hl /mnt/home
+        touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
+        ls -hl /mnt/home
     '
-    test-write-access
+    root@65f76044ffcb
+    total 0
+    total 0
+    -rw-rw-r--    1 root     root     0 ... test-write-access-2025-05-11T19.08.32Z
 
-    ☩ podman run --rm --volume /:/mnt/root alpine touch /mnt/root/test-write-access
-    touch: /mnt/root/test-write-access: Permission denied
+    ☩ ls /work/podman/home/u0
+    total 0
+    -rw-rw-r--. 1 podman-u0 podman-u0 0 ... test-write-access-2025-05-11T19.08.32Z
 
-    ☩ podman run --rm --volume /:/mnt/root alpine whoami
-    root
-
-    ☩ podman run --rm --volume /:/mnt/root alpine ls -hl /mnt/root
-    ...
-    drwxrwxrwt   17 nobody   nobody      4.0K May  9 19:35 tmp
-    drwxr-xr-x   12 nobody   nobody       144 Dec 15 03:23 usr
-    drwxr-xr-x   20 nobody   nobody      4.0K Dec 22 22:28 var
-    drwxr-xr-x    3 nobody   nobody        20 May  3 20:28 work
-
+    ☩ ls -n /work/podman/home/u0
+    total 0
+    -rw-rw-r--. 1 50004 50004 0         ... test-write-access-2025-05-11T19.08.32Z
     ```
-    - User is `root` at container, but *not* at host.
+    - Podman rootless : The `root` user of container is *not* `root` at host,
+      but rather maps to host user (`podman-u0`) who ran the command.
 
 ### 2. __Login shell__
 
@@ -111,8 +124,8 @@ TODO
 
 ## ❌ Common Service Account
 
->A common service account for multiple developers running rootless Podman is technically possible, 
->but **collisions and subtle failures are highly likely**, 
+>A common service account for multiple developers running rootless Podman is technically possible,
+>but **collisions and subtle failures are highly likely**,
 >and **increase rapidly with team size** and intensity of usage.
 
 ---
@@ -202,8 +215,8 @@ You'll encounter unpredictable behavior or crashes.
 
 Provision **a dedicated Podman service account per developer**, either:
 
-* ~~**Mapped from AD** (e.g., `jdoe@domain` → `podman-jdoe`)~~ 
-    - Not viable; Podman does not recognize AD users, 
+* ~~**Mapped from AD** (e.g., `jdoe@domain` → `podman-jdoe`)~~
+    - Not viable; Podman does not recognize AD users,
       so namespaces (subid assignments) would have to be managed.
 * Or **locally created accounts** named after users (`podman-alice`, `podman-bob`, etc.)
 
@@ -218,7 +231,7 @@ And provision:
 
 ## `su` vs `sudo -u`
 
-### **Shell Requirements: `su` vs `sudo -u`**  
+### **Shell Requirements: `su` vs `sudo -u`**
 
 | **Command**           | **Requires Login Shell?** | **Works with `nologin`?** | **Best For** |
 |-----------------------|---------------------------|---------------------------|--------------|
@@ -229,51 +242,51 @@ Where `$name` is that of the Podman (service) account common to all users.
 
 ---
 
-### **Key Differences**  
+### **Key Differences**
 
-#### **1. `su` (Switch User)**  
-- **Requires a valid login shell** (e.g., `/bin/bash`, `/bin/sh`)  
-- **Fails if shell is `/sbin/nologin` or `/bin/false`**:  
+#### **1. `su` (Switch User)**
+- **Requires a valid login shell** (e.g., `/bin/bash`, `/bin/sh`)
+- **Fails if shell is `/sbin/nologin` or `/bin/false`**:
     ```bash
     su - podmaners  # Error: "This account is currently not available."
     ```
-- **Bypass (temporarily, not recommended)**:  
+- **Bypass (temporarily, not recommended)**:
     ```bash
     sudo su -s /bin/bash podmaners  # Force shell
     ```
 
-#### **2. `sudo -u` (Run as User)**  
-- **Ignores the user's shell** – works even with `/sbin/nologin`  
-- **Ideal for service accounts**:  
+#### **2. `sudo -u` (Run as User)**
+- **Ignores the user's shell** – works even with `/sbin/nologin`
+- **Ideal for service accounts**:
     ```bash
     sudo -u podmaners podman info  # Works!
     ```
-- **Logs commands** in `/var/log/secure` (better auditing).  
+- **Logs commands** in `/var/log/secure` (better auditing).
 
 ---
 
-### **Why This Matters for Podman Service Accounts**  
-- **Security**: Service accounts should **never** have a shell (`/sbin/nologin`).  
-- **Podman needs `sudo -u`**:  
+### **Why This Matters for Podman Service Accounts**
+- **Security**: Service accounts should **never** have a shell (`/sbin/nologin`).
+- **Podman needs `sudo -u`**:
     ```bash
     # Correct way to run Podman as a service account
     sudo -u podmaners podman run --rm alpine echo "Hello"
     ```
-- **`su` breaks security**: Giving a shell to `podmaners` defeats the purpose of a service account.  
+- **`su` breaks security**: Giving a shell to `podmaners` defeats the purpose of a service account.
 
 ---
 
-### **Best Practices**  
-1. **Always use `sudo -u` for service accounts**:  
+### **Best Practices**
+1. **Always use `sudo -u` for service accounts**:
     ```bash
     sudo -u podmaners podman [command]
     ```
-2. **Never change `nologin` to `bash`**:  
+2. **Never change `nologin` to `bash`**:
     ```bash
     # ❌ Dangerous (don't do this!)
     sudo usermod -s /bin/bash podmaners
     ```
-3. **If you need debugging**:  
+3. **If you need debugging**:
     ```bash
     # Temporary shell (avoid unless necessary)
     sudo -u podmaners bash -c 'whoami && podman info'
@@ -281,7 +294,7 @@ Where `$name` is that of the Podman (service) account common to all users.
 
 ---
 
-### **Example: Secure Podman Setup**  
+### **Example: Secure Podman Setup**
 ```bash
 # Create service account (no shell, no home dir)
 sudo useradd -r -s /sbin/nologin -d /var/empty podmaners
@@ -293,11 +306,11 @@ su - podmaners                 # ❌ Fails (as intended)
 
 ---
 
-### **Final Answer**  
-✅ **Use `sudo -u podmaners`** – it bypasses shell checks and is secure.  
-❌ **Avoid `su` for service accounts** – it requires a shell and weakens security.  
+### **Final Answer**
+✅ **Use `sudo -u podmaners`** – it bypasses shell checks and is secure.
+❌ **Avoid `su` for service accounts** – it requires a shell and weakens security.
 
-Need to debug a `nologin` account? Use:  
+Need to debug a `nologin` account? Use:
 
 ```bash
 sudo -u podmaners bash -c '[commands]'  # Temporary exception
@@ -381,7 +394,7 @@ Users invoke Podman interactively:
 
 ---
 
-<!-- 
+<!--
 
 # Markdown Cheatsheet
 

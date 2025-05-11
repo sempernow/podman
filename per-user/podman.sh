@@ -1,26 +1,40 @@
 #!/usr/bin/env bash
+# @ /usr/local/bin/podman
 #####################################################################
-# This script runs /usr/bin/podman as *local* user "podman-$USER",
-# which is a local proxy for the invoking AD user ($USER).
-# The local proxy must be provisioned for such a rootless-Podman 
-# environment. See /usr/local/bin/provision-pddman-nologin.sh
-# 
+# This script runs /usr/bin/podman as *local* user "podman-<USER>",
+# which is a local proxy for the invoking domain (AD) user (<USER>).
+#
+# The local-proxy user must already be configured
+# to their namespaced Podman environment.
+# See /usr/local/bin/provision-pddman-nologin.sh
+#
 # The invoking user must have membership in group "podman-sudoers"
 # unless otherwise privileged with the necessary access.
 #####################################################################
-## Run in the workspace provisioned for this user.
-## Podman's rootless scheme requires a "neutral" directory:
-## - Not HOME of USER, where SUDO_USER would fail AuthZ.
-## - Not HOME of SUDO_USER, where USER would fail AuthZ.
-scratch=/work/podman/scratch/$USER # The preferred neutral workspace
-[[ $(pwd) =~ $scratch ]] ||
-    cd $scratch ||
-        cd /tmp/$USER
+bin=/usr/bin/podman
+[[ -f $bin ]] || exit 11
 
-#sudo -u podman-$USER /usr/bin/podman "$@"
-
-sudo -u podman-$USER \
-    HOME=/work/podman/home/$USER \
-    XDG_RUNTIME_DIR=/run/user/$(id -u podman-$USER) \
-    DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$USER)/bus \
+user=$(id -un)
+cat /etc/passwd |grep -e "^$user:" && {
+    ## If invoking user is local, then run podman directly and exit.
     /usr/bin/podman "$@"
+    exit $?
+}
+
+home="$(cat /etc/passwd |grep "podman-$user:" |cut -d':' -f6)"
+[[ -d $home ]] || exit 22
+
+## Change working dir to home of local user else to unconfigured neutral dir.
+[[ $(pwd) =~ $home ]] ||
+    cd $home || {
+        mkdir -p /tmp/$user &&
+            cd /tmp/$user ||
+                echo '  WARN: Unable to set the working directory'
+    }
+
+## Invoke Podman binary with all expected parameters configured to this (nologin) local user.
+sudo -u podman-$user \
+    HOME=$home \
+    XDG_RUNTIME_DIR=/run/user/$(id -u podman-$user) \
+    DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$user)/bus \
+    $bin "$@"

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 ######################################################################
-# This script installs a group-scoped sudoers drop-in file.
+# This script installs a group-scoped sudoers drop-in file
 # allowing group members the declared set of sudo commands
 # required for containerized development in a rootless (per-user)
-# Podman environment. The group may be local or remote (AD).
+# Podman environment. The group may be local or domain (AD).
 #
 # Group membership must include *local* users, "podman-<USER>",
 # each created as a logical mapping of its AD-user namesake.
@@ -18,9 +18,9 @@
 ######################################################################
 
 ## Guardrails
-[[ $(whoami) == 'root' ]] || { 
+[[ $(whoami) == 'root' ]] || {
     echo '  Must RUN AS root'
-    
+
     exit 11
 }
 
@@ -34,9 +34,12 @@ getent group $scope || groupadd -r $scope
 ## Allow user to self provision (1.) and to run any podman command (2.) :
 ## 1. sudo $script
 ## 2. sudo -u podman-$USER podman ...
-[[ -f $sudoers ]] || tee $sudoers <<EOH
+#[[ -f $sudoers ]] || tee $sudoers <<EOH
+tee $sudoers <<EOH
 Defaults:%$scope secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
 Defaults:%$scope env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
 %$scope ALL=(ALL) NOPASSWD: $script, /usr/bin/podman *, /usr/local/bin/podman *
+#%ad-domain-users ALL=(ALL) NOPASSWD: /usr/local/bin/podman-sudoer-add.sh
 EOH
-
+chown root:root $sudoers
+chmod 640 $sudoers

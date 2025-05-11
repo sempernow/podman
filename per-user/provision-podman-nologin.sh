@@ -12,9 +12,9 @@
 ####################################################################
 
 ## Guardrails
-[[ $(whoami) == 'root' ]] || { 
+[[ $(whoami) == 'root' ]] || {
     echo '  Must RUN AS root'
-    
+
     exit 11
 }
 logger "Script run by '$SUDO_USER' via sudo : '$BASH_SOURCE'"
@@ -43,25 +43,41 @@ seVerify(){
 }
 export -f seVerify
 
-## Create a local user account having a non-standard (alt) HOME which SELinux treats as it would those of /home
+## Configure a non-standard (alt) HOME for local user which SELinux treats as it would those of /home
 mkdir -p $alt/home
 seVerify || {
     ## Force SELinux to accept SELinux declarations REGARDLESS of current state of SELinux objects at target(s)
     semanage fcontext --delete "$alt/home(/.*)?" 2>/dev/null # Delete all rules; is okay if no rules exist.
     restorecon -Rv $alt/home # Apply the above purge (now).
-    ## Declare SELinux fcontext equivalence : "/home = $alt/home"
-    semanage fcontext --add --equal /home $alt/home 
+    ## Declare SELinux fcontext EQUIVALENCE : "/home = $alt/home"
+    semanage fcontext --add --equal /home $alt/home
     restorecon -Rv $alt/home # Apply the above rule (now).
 }
 
-## Create a *regular* user (and group), having no login shell, for use as the service account.
-## Podman rootless requires an active login shell (DBus Session Bus, etc.), so fail if --system user.
+## Create a *regular* user (and group), having no login shell,
+## yet a home directory expected by Podman's rootless (per-user) scheme.
+## Podman rootless scheme expects an active login shell (DBus Session Bus, etc.),
+## and so fails to provision user namespace for any --system user.
+## The parameters required to satisfy Podman must be injected into the sudo session.
+## See /usr/local/bin/podman script : sudo -u
 id -un $local_user >/dev/null 2>&1 || {
-    useradd --create-home --home-dir $d --shell /sbin/nologin $local_user
+    useradd --create-home --home-dir $alt_home --shell /sbin/nologin $local_user
     loginctl enable-linger $local_user
 }
+id -un $local_user >/dev/null 2>&1 || {
+    echo "ERR : FAILed @ useradd : $local_user does NOT EXIST."
+
+    exit 33
+}
+## Allow domain user to self-provision.
 sudoers=podman-sudoers
-groups $domain_user |grep $sudoers || usermod -aG $sudoers $domain_user
+groups $domain_user |grep $sudoers     || usermod -aG $sudoers $domain_user
+## Allow domain user access to home of its provisioned local user.
+groups $domain_user |grep $local_group || usermod -aG $local_group $domain_user
+newgrp $local_group
+chown -R $local_user:$local_group $alt_home
+find $alt_home -type d -exec chmod 775 {} \+
+find $alt_home -type f -exec chmod 660 {} \+
 
 ## Verify that $local_user is provisioned
 restorecon -Rv $alt/home # Apply any resulting SELinux fcontext changes (again, just to be sure).
@@ -71,14 +87,15 @@ seVerify || {
 
     exit 66
 }
-grep $local_user /etc/subuid && grep $local_group /etc/subgid || {
-    echo "  ERR : FAILed @ subids"
+grep $local_user /etc/subuid &&
+    grep $local_group /etc/subgid || {
+        echo "  ERR : FAILed @ subids"
 
-    exit 77
-}
+        exit 77
+    }
 
 ## Create "neutral" working directory
-## Necessary only if HOME is not declared. 
+## Necessary only if HOME is not declared.
 ## That is, if /usr/local/bin/podman wrapper not invoked
 ## - Not HOME of $local_user, where $domain_user would fail AuthZ
 ## - Not HOME of $domain_user, where $local_user would fail AuthZ
@@ -98,8 +115,10 @@ grep $local_user /etc/subuid && grep $local_group /etc/subgid || {
 #         popd
 
 podman run --rm --volume $alt_home:/mnt/home alpine sh -c '
-    ls /mnt/home
-    touch /mnt/home/test-file-write-access
-    ls /mnt/home
+    echo $(whoami)@$(hostname -f)
+    umask 002
+    rm -f /mnt/home/test-write-access-*
+    ls -hl /mnt/home
+    touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
+    ls -hl /mnt/home
 '
-
