@@ -17,7 +17,6 @@
 # - Idempotent
 ######################################################################
 
-## Guardrails
 [[ $(whoami) == 'root' ]] || {
     echo '  Must RUN AS root'
 
@@ -26,20 +25,20 @@
 
 app=podman
 scope=$app-sudoers
-script=/usr/local/bin/provision-podman-nologin.sh
+self_provision=/usr/local/bin/provision-$app-nologin.sh
 sudoers=/etc/sudoers.d/$scope
 
 getent group $scope || groupadd -r $scope
 
-## Allow user to self provision (1.) and to run any podman command (2.) :
-## 1. sudo $script
-## 2. sudo -u podman-$USER podman ...
-#[[ -f $sudoers ]] || tee $sudoers <<EOH
+## Allow (AD) user to self provision:
+##  sudo $self_provision
+## Allow scoped-group member to run binary as sudo:
+##  sudo -u $app-$USER $app ...
 tee $sudoers <<EOH
 Defaults:%$scope secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
 Defaults:%$scope env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
-%$scope ALL=(ALL) NOPASSWD: $script, /usr/bin/podman *, /usr/local/bin/podman *
-#%ad-domain-users ALL=(ALL) NOPASSWD: /usr/local/bin/podman-sudoer-add.sh
+%$scope ALL=(ALL) NOPASSWD: $self_provision
+%$scope ALL=($app-*) NOPASSWD: /usr/bin/$app
 EOH
 chown root:root $sudoers
 chmod 640 $sudoers

@@ -11,7 +11,6 @@
 # - Idempotent
 ####################################################################
 
-## Guardrails
 [[ $(whoami) == 'root' ]] || {
     echo '  Must RUN AS root'
 
@@ -21,7 +20,8 @@ logger "Script run by '$SUDO_USER' via sudo : '$BASH_SOURCE'"
 
 domain_user=$SUDO_USER
 ## Allow domain admins to select the AD user
-[[ $1 ]] && groups $SUDO_USER |grep ad-linux-sudoers && domain_user=$1
+admins_group=ad-linux-sudoers
+[[ $1 ]] && groups $SUDO_USER |grep "$admins_group" && domain_user=$1
 
 app=podman
 alt=/work/$app
@@ -56,10 +56,7 @@ seVerify || {
 
 ## Create a *regular* user (and group), having no login shell,
 ## yet a home directory expected by Podman's rootless (per-user) scheme.
-## Podman rootless scheme expects an active login shell (DBus Session Bus, etc.),
-## and so fails to provision user namespace for any --system user.
-## The parameters required to satisfy Podman must be injected into the sudo session.
-## See /usr/local/bin/podman script : sudo -u
+## (See podman wrapper: /usr/local/bin/podman .)
 id -un $local_user >/dev/null 2>&1 || {
     useradd --create-home --home-dir $alt_home --shell /sbin/nologin $local_user
     loginctl enable-linger $local_user
