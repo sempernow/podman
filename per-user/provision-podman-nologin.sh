@@ -10,12 +10,6 @@
 #
 # - Idempotent
 ####################################################################
-
-[[ $(whoami) == 'root' ]] || {
-    echo '  Must RUN AS root'
-
-    exit 11
-}
 logger "Script run by '$SUDO_USER' via sudo : '$BASH_SOURCE'"
 
 domain_user=$SUDO_USER
