@@ -55,15 +55,15 @@ rm -rf "$alt/scratch/$domain_user"
 
 ## Verify
 grep "$local_user" /etc/passwd &&
-    echo "❌ ERR : User '$local_user' remains" &&
+    echo "❌  ERR : User '$local_user' remains" &&
         exit 71
 
 getent group "$local_group" |grep "$local_user" &&
-    echo "❌ ERR : Group '$local_group' remains'" &&
+    echo "❌  ERR : Group '$local_group' remains'" &&
         exit 74
 
 ls -ZRahl $alt |grep "$local_user" &&
-    echo "❌ ERR : HOME dir remains for deleted user '$local_user'" && 
+    echo "❌  ERR : HOME dir remains for deleted user '$local_user'" && 
         exit 76
 
 # ## The subids should already be removed, but this is safety net
@@ -72,14 +72,14 @@ ls -ZRahl $alt |grep "$local_user" &&
 sleep 1
 
 grep "$local_user" /etc/subuid &&
-    echo "❌ ERR : subUID entries remain for deleted user '$local_user'" &&
+    echo "❌  ERR : subUID entries remain for deleted user '$local_user'" &&
         exit 78
 
 grep "$local_group" /etc/subgid &&
-    echo "❌ ERR : subGID entries remain for deleted group '$local_group'" &&
+    echo "❌  ERR : subGID entries remain for deleted group '$local_group'" &&
         exit 79
 
 loginctl user-status "$local_user" 2>/dev/null |command grep -q Linger &&
-    echo "❌ ERR : Linger remains enabled for '$local_group'" &&
+    echo "❌  ERR : Linger remains enabled for '$local_group'" &&
         exit 80 ||
             echo "✅ Teardown of '$local_user' and artifacts is complete."

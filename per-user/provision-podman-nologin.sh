@@ -24,7 +24,7 @@ local_user=$app-$domain_user
 local_group=$local_user
 
 id "$local_user" >/dev/null 2>&1 && {
-    echo "⚠ User '$local_user' already exists."
+    echo "⚠  User '$local_user' already exists."
 
     exit 33
 }
@@ -62,7 +62,7 @@ id "$local_user" >/dev/null 2>&1 || {
     loginctl enable-linger "$local_user"
 }
 id "$local_user" >/dev/null 2>&1 || {
-    echo "⚠ ERR : FAILed @ useradd : '$local_user' does NOT EXIST."
+    echo "⚠  ERR : FAILed @ useradd : '$local_user' does NOT EXIST."
 
     exit 33
 }
@@ -71,7 +71,7 @@ sudoers=podman-sudoers
 groups "$domain_user" |grep $sudoers     || usermod -aG "$sudoers" "$domain_user"
 ## Allow domain user access to home of its provisioned local user.
 groups "$domain_user" |grep $local_group || usermod -aG "$local_group" "$domain_user" &&
-    echo "🚧 User '$domain_user' MUST LOGOUT/LOGIN to activate their membership in groups: '$sudoers' and '$local_group'."
+    echo "🚧  User '$domain_user' MUST LOGOUT/LOGIN to activate their membership in groups: '$sudoers' and '$local_group'."
 
 chown -R $local_user:$local_group $alt_home
 find $alt_home -type d -exec chmod 775 {} \+
@@ -81,30 +81,30 @@ find $alt_home -type f -exec chmod 660 {} \+
 restorecon -Rv $alt/home # Apply any resulting SELinux fcontext changes (again, just to be sure).
 ls -ZRhl $alt
 seVerify || {
-    echo "⚠ ERR : FAILed @ SELinux : semanage fcontext"
+    echo "⚠  ERR : FAILed @ SELinux : semanage fcontext"
 
     exit 66
 }
 
 grep -q $local_user /etc/subuid || {
-    echo "⚠ ERR : FAILed to add subUID range for local user '$local_user'"
+    echo "⚠  ERR : FAILed to add subUID range for local user '$local_user'"
     
     exit 77
 }
 grep -q $local_group /etc/subgid || {
-    echo "⚠ ERR : FAILed to add subGID range for local group '$local_group'"
+    echo "⚠  ERR : FAILed to add subGID range for local group '$local_group'"
 
     exit 78
 }
 
 img=alpine
 podman run --rm --volume $alt_home:/mnt/home $img sh -c '
-    echo "🚀 Hello from the container : $(whoami)@$(hostname -f) !"
+    echo "🚀  Hello from the container : $(whoami)@$(hostname -f) !"
     umask 002
     ls -hl /mnt/home/test-*
     touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
     ls -hl /mnt/home/test-*
 '
 
-echo "✅ Provision complete."
+echo "✅  Provision complete."
 exit 0
