@@ -11,7 +11,7 @@
 # - Idempotent
 ####################################################################
 [[ -n "${SUDO_USER:-}" ]] || {
-    echo "⚠ USAGE: sudo ${BASH_SOURCE##*/}"
+    echo "⚠  USAGE: sudo ${BASH_SOURCE##*/}"
 
     exit 1
 }

@@ -29,7 +29,7 @@ There are many corners to this envelope:
           these environment settings must be __explicitly declared__:
             ```bash
             cd /tmp
-            sudo -u podman-$USER \
+            sudo -u podman-$USER -- env \
                 HOME=/home/podman-$USER \
                 XDG_RUNTIME_DIR=/run/user/$(id -u podman-$USER) \
                 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$USER)/bus \
