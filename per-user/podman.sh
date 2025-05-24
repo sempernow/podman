@@ -66,15 +66,14 @@ dbus_socket="$runtime_dir/bus"
 
 # Validate runtime dir exists (loginctl linger may be required).
 [[ ! -d "$runtime_dir" ]] && {
-    echo "ERR: Runtime directory $runtime_dir does not exist. Enable linger for $proxy_user." >&2
+    echo "ERR: Runtime directory '$runtime_dir' does not exist. Enable linger for $proxy_user." >&2
     echo "Run: loginctl enable-linger $proxy_user" >&2
 
     exit 55
 }
 
-# Log meta of the subsequent exec.
-logger "Invoked by '$invoking_user' via sudo as '$proxy_user' : Script: '$BASH_SOURCE'"
-echo "Invoked by $invoking_user : Switching to $proxy_user with args: $*" >&2
+# Log the meta
+logger "Script $BASH_SOURCE invoked by '$invoking_user' : Args: $*"
 
 # Execute podman as the proxy user in the environment required by Podman's rootless scheme.
 exec sudo -u "$proxy_user" -- env \
@@ -82,3 +81,4 @@ exec sudo -u "$proxy_user" -- env \
     XDG_RUNTIME_DIR="$runtime_dir" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=$dbus_socket" \
     "$bin" "$@"
+
