@@ -13,7 +13,7 @@
 #####################################################################################
 
 [[ "$(whoami)" == 'root' ]] || {
-    echo '  Must RUN AS root'
+    echo '❌  Must RUN AS root'
 
     exit 11
 }
@@ -34,6 +34,7 @@ echo "domain_user : '$domain_user'"
 
 ## Disable linger (process)
 loginctl disable-linger "$local_user" 2>/dev/null # Ok if not exist
+
 userdel -r -Z "$local_user" 2>/dev/null ||
     userdel -Z "$local_user" 2>/dev/null
 
@@ -47,32 +48,38 @@ gpasswd -d "$domain_user" podman-sudoers
 #semanage fcontext --delete "$alt/home(/.*)?" 2>/dev/null # Ok if none exist.
 #restorecon -Rv $alt/home
 
-rm -rf $alt_home # Should already be deleted by userdel.
+rm -rf "$alt_home" # Should already be deleted by userdel.
 
 ## Delete the neutral working directory
-rm -rf $alt/scratch/$domain_user
+rm -rf "$alt/scratch/$domain_user"
 
 ## Verify
 grep "$local_user" /etc/passwd &&
-    echo "ERR : User '$local_user' remains" &&
-        exit 95
+    echo "❌ ERR : User '$local_user' remains" &&
+        exit 71
 
 getent group "$local_group" |grep "$local_user" &&
-    echo "ERR : Group '$local_group' remains'" &&
-        exit 96
+    echo "❌ ERR : Group '$local_group' remains'" &&
+        exit 74
 
 ls -ZRahl $alt |grep "$local_user" &&
-    echo "ERR : HOME dir remains for deleted user '$local_user'" && 
-        exit 97
+    echo "❌ ERR : HOME dir remains for deleted user '$local_user'" && 
+        exit 76
+
+# ## The subids should already be removed, but this is safety net
+# sed -i "/^$local_user:/d" /etc/subuid
+# sed -i "/^$local_group:/d" /etc/subgid
+sleep 1
 
 grep "$local_user" /etc/subuid &&
-    echo "ERR : subuid entries remain for deleted user '$local_user'" &&
-        exit 98
+    echo "❌ ERR : subUID entries remain for deleted user '$local_user'" &&
+        exit 78
 
 grep "$local_group" /etc/subgid &&
-    echo "ERR : subgid entries remain for deleted group '$local_group'" &&
-        exit 99
+    echo "❌ ERR : subGID entries remain for deleted group '$local_group'" &&
+        exit 79
 
-loginctl user-status "$local_user" 2>/dev/null |command grep Linger &&
-    exit 999 ||
-        echo ok
+loginctl user-status "$local_user" 2>/dev/null |command grep -q Linger &&
+    echo "❌ ERR : Linger remains enabled for '$local_group'" &&
+        exit 80 ||
+            echo "✅ Teardown of '$local_user' and artifacts complete"
