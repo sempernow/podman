@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 ####################################################################
 # Provision a stable rootless Podman environment for an AD user
-# by creating a local service account (--shell /sbin/nologin),
-# as which the otherwise unprivileged namesake (AD user)
-# may sudo only the set of commands declared at a sudoers file
-# scoped to AD group "podman-sudoers".
+# by creating a local service account (--shell /sbin/nologin)
+# that allows the otherwise unprivileged namesake (AD user)
+# to run as, with commands limited by an apropos sudoers file. 
+#
+# RedHat has not yet documented a stable, scalable,
+# fully-functional rootless Podman solution 
+# for remote (AD) users. This scheme is a workaround.
 #
 # ARGs: [DOMAIN_USER] (Default is SUDO_USER)
 #

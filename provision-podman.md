@@ -56,40 +56,24 @@ To allow for self-provisioning, the AD user must be member of `podman-sudoers` g
 which may be either AD or local.
 
 #### Admin
-1. [`podman-sudoer-add.sh`](per-user/podman-sudoer-add.sh)
-   Install script allowing members of `ad-domain-users` group
-   to add themselves to `podman-sudoers` group
-    ```bash
-    u2@a0 # sudoer
-    ☩ sudo bash podman-sudoer-add.sh
-    ```
-1. [`provision-podman-sudoers.sh`](per-user/provision-podman-sudoers.sh)
-   Install sudoers drop-in scoped to group `podman-sudoers`
-    ```bash
-    u2@a0 # sudoer
-    ☩ sudo bash provision-podman-sudoers.sh
-    ```
-1. [`provision-podman-nologin.sh`](per-user/provision-podman-nologin.sh)
-   Install the self-provisioning script
-    ```bash
-    u2@a0 # sudoer
-    ☩ sudo install provision-podman-nologin.sh /usr/local/bin/
-    ```
-1. [`podman.sh`](per-user/podman.sh)
-   Install the `podman` wrapper script
-    ```bash
-    u2@a0 # sudoer
-    ☩ sudo install podman.sh /usr/local/bin/podman
-    ```
+
+```bash
+sudo install.sh
+```
+
+- [`podman-provision-sudoers.sh`](per-user/podman-provision-sudoers.sh)
+- [`podman-provision-nologin.sh`](per-user/podman-provision-nologin.sh)
+- [`podman-unprovision-user.sh`](per-user/podman-unprovision-user.sh)
+- [`podman.sh`](per-user/podman.sh)
 
 #### User(s)
 
-Use "__`sudo su - u0`__" if at an admin account.
+Users must be member of the group declared in the apropos group-scoped sudoers file that allows such access.
 
 1. Self provision a fully-functional rootless Podman environment
     ```bash
     u0@a0 # unprivileged user
-    ☩ sudo /usr/local/bin/provision-podman-nologin.sh
+    ☩ sudo podman-provision-nologin.sh
     ```
 1. Use it to run Podman commands
     ```bash

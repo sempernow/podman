@@ -1,18 +1,11 @@
 #!/usr/bin/env bash
 ######################################################################
 # This script installs a group-scoped sudoers drop-in file
-# allowing group members the declared set of sudo commands
-# required for containerized development in a rootless (per-user)
-# Podman environment. The group may be local or domain (AD).
-#
-# Group membership must include *local* users, "podman-<USER>",
-# each created as a logical mapping of its AD-user namesake.
-# Unlike their AD counterparts, these local-proxy users may be
-# configured to satisfy all process requirements
-# of Podman's rootless scheme.
-#
-# RedHat has not yet documented a stable, fully-functional rootless
-# Podman solution for remote (AD) users.
+# to provision users for Podman in rootless (per-user) mode: 
+# 
+# - Allows (AD) users to self provision a local proxy user.
+# - Limits the proxy user to run only podman commands, 
+#   and only via a script which confiugres the environment.
 #
 # - Idempotent
 ######################################################################
@@ -25,15 +18,15 @@
 
 app=podman
 scope=$app-sudoers
-self_provision=/usr/local/bin/provision-$app-nologin.sh
+self_provision=/usr/local/bin/$app-provision-nologin.sh
 sudoers=/etc/sudoers.d/$scope
 
 getent group $scope || groupadd -r $scope
 
 ## Allow (AD) user to self provision:
 ##  sudo $self_provision
-## Allow scoped-group member to run binary as sudo:
-##  sudo -u $app-$USER $app ...
+## Allow scoped-group sudoers to run binary as sudo:
+##  sudo -u $app-$USER -- env ... $app ...
 tee $sudoers <<EOH
 Defaults:%$scope secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
 Defaults:%$scope env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
