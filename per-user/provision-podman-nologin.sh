@@ -10,6 +10,11 @@
 #
 # - Idempotent
 ####################################################################
+[[ -n "${SUDO_USER:-}" ]] || {
+    echo "⚠ USAGE: sudo ${BASH_SOURCE##*/}"
+
+    exit 1
+}
 logger "Script run by '$SUDO_USER' via sudo : '$BASH_SOURCE'"
 
 domain_user=$SUDO_USER
@@ -26,7 +31,7 @@ local_group=$local_user
 id "$local_user" >/dev/null 2>&1 && {
     echo "⚠  User '$local_user' already exists."
 
-    exit 33
+    exit 11
 }
 
 grep -qe "^$domain_user" /etc/passwd && {
