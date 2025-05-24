@@ -17,17 +17,17 @@ domain_user=$SUDO_USER
 admins_group=ad-linux-sudoers
 [[ $1 ]] && groups $SUDO_USER |grep "$admins_group" && domain_user=$1
 
-id "$local_user" >/dev/null 2>&1 && {
-    echo "⚠ User '$local_user' already exists."
-
-    exit 33
-}
-
 app=podman
 alt=/work/$app
 alt_home=$alt/home/$domain_user
 local_user=$app-$domain_user
 local_group=$local_user
+
+id "$local_user" >/dev/null 2>&1 && {
+    echo "⚠ User '$local_user' already exists."
+
+    exit 33
+}
 
 grep -qe "^$domain_user" /etc/passwd && {
     echo "⚠  This script creates a local account, '$app-$domain_user', for a *non-local* (AD domain) user."
