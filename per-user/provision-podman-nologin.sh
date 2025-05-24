@@ -88,7 +88,7 @@ grep -q $local_user /etc/subuid &&
     }
 
 img=alpine
-podman run --rm --volume $alt_home:/mnt/home $img -- sh -c '
+podman run --rm --volume $alt_home:/mnt/home $img sh -c '
     echo "🚀 Hello from $(whoami) in container $(hostname -f)!"
     umask 002
     ls -hl /mnt/home
