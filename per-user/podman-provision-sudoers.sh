@@ -27,7 +27,7 @@ sudoers=/etc/sudoers.d/$scope
 getent group $scope || groupadd -r $scope
 tee $sudoers <<EOH
 Defaults:%$scope secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
-%$scope ALL=(ALL) NOPASSWD: $self_provision
+%$scope ALL=(ALL) NOPASSWD: $self_provision, /usr/bin/env
 EOH
 chown root:root $sudoers
 chmod 640 $sudoers
