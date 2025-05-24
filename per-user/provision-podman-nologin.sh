@@ -65,7 +65,7 @@ sudoers=podman-sudoers
 groups $domain_user |grep $sudoers     || usermod -aG $sudoers $domain_user
 ## Allow domain user access to home of its provisioned local user.
 groups $domain_user |grep $local_group || usermod -aG $local_group $domain_user
-newgrp $local_group
+#newgrp $local_group
 chown -R $local_user:$local_group $alt_home
 find $alt_home -type d -exec chmod 775 {} \+
 find $alt_home -type f -exec chmod 660 {} \+
@@ -78,32 +78,13 @@ seVerify || {
 
     exit 66
 }
-grep $local_user /etc/subuid &&
-    grep $local_group /etc/subgid || {
+
+grep -q $local_user /etc/subuid &&
+    grep -q $local_group /etc/subgid || {
         echo "  ERR : FAILed @ subids"
 
         exit 77
     }
-
-## Create "neutral" working directory
-## Necessary only if HOME is not declared.
-## That is, if /usr/local/bin/podman wrapper not invoked
-## - Not HOME of $local_user, where $domain_user would fail AuthZ
-## - Not HOME of $domain_user, where $local_user would fail AuthZ
-# scratch="$alt/scratch/$domain_user"
-# mkdir -p $scratch
-# chown -R $domain_user:$local_user $scratch
-# chmod 755 $scratch
-
-#sudo su -u $local_user podman system migrate
-
-## If login shell
-#sudo -u $local_user podman run busybox hostname
-
-
-# pushd $scratch &&
-#     sudo -u $local_user /usr/bin/podman info |tee podman.info.yaml &&
-#         popd
 
 podman run --rm --volume $alt_home:/mnt/home alpine sh -c '
     echo $(whoami)@$(hostname -f)
@@ -113,3 +94,6 @@ podman run --rm --volume $alt_home:/mnt/home alpine sh -c '
     touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
     ls -hl /mnt/home
 '
+
+echo "✅ Provision complete."
+exit 0
