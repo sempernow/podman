@@ -77,7 +77,7 @@ logger "Invoked by '$invoking_user' via sudo as '$proxy_user' : Script: '$BASH_S
 echo "Invoked by $invoking_user : Switching to $proxy_user with args: $*" >&2
 
 # Execute podman as the proxy user in the environment required by Podman's rootless scheme.
-exec sudo -u "$proxy_user" -- \
+exec sudo -u "$proxy_user" -- env \
     HOME="$home" \
     XDG_RUNTIME_DIR="$runtime_dir" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=$dbus_socket" \
