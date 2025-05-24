@@ -36,7 +36,10 @@ export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 export APP_NAME                := podman
 export APP_GROUP_ADMINS        := ad-linux-sudoers
 export APP_GROUP_PROVISIONERS  := ${APP_NAME}-provisioners
-export APP_GROUP_LOCAL_USERS   := ${APP_NAME}-local
+export APP_GROUP_LOCAL_PROXY   := ${APP_NAME}-local
+export APP_PROVISION_NOLOGIN   := ${APP_NAME}-provision-nologin.sh
+export APP_PROVISION_SUDOERS   := ${APP_NAME}-provision-sudoers.sh
+export APP_OCI_TEST_IMAGE      := alpine
 
 ##############################################################################
 ## Recipes

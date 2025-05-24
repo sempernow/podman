@@ -13,6 +13,12 @@
 #
 # - Idempotent
 ####################################################################
+admins_group=APP_GROUP_ADMINS
+app=APP_NAME
+sudoers_provisioners=APP_GROUP_PROVISIONERS
+sudoers_local_proxy=APP_GROUP_LOCAL_PROXY
+img=APP_OCI_TEST_IMAGE
+
 [[ -n "${SUDO_USER:-}" ]] || {
     echo "⚠  USAGE: sudo ${BASH_SOURCE##*/}" >&2
 
@@ -22,10 +28,8 @@ logger "Script run by '$SUDO_USER' via sudo : '$BASH_SOURCE'"
 
 domain_user=$SUDO_USER
 ## Allow domain admins to select the AD user
-admins_group=${APP_GROUP_ADMINS:-APP_GROUP_ADMINS}
 [[ $1 ]] && groups $SUDO_USER |grep "$admins_group" && domain_user=$1
 
-app=${APP_NAME:-podman}
 alt=/work/$app
 alt_home=$alt/home/$domain_user
 local_user=$app-$domain_user
@@ -74,13 +78,19 @@ id "$local_user" >/dev/null 2>&1 || {
 
     exit 33
 }
-## Allow domain user to self-provision.
-sudoers={$APP_GROUP_PROVISIONERS:-APP_GROUP_PROVISIONERS}
-groups "$domain_user" |grep $sudoers     || usermod -aG "$sudoers" "$domain_user"
-## Allow domain user access to home of its provisioned local user.
-groups "$domain_user" |grep $local_group || usermod -aG "$local_group" "$domain_user" &&
-    echo "🚧  User '$domain_user' MUST LOGOUT/LOGIN to activate their membership in groups: '$sudoers' and '$local_group'." >&2
+## Allow local proxy to run podman wrapper script
+usermod -aG "$sudoers_local_proxy" $local_user
 
+## Allow domain user to self-provision.
+groups "$domain_user" |grep $sudoers_provisioners ||
+    usermod -aG "$sudoers_provisioners" "$domain_user"
+
+## Allow domain user access to home of its provisioned local user.
+groups "$domain_user" |grep $local_group ||
+    usermod -aG "$local_group" "$domain_user" &&
+        echo "🚧  User '$domain_user' MUST LOGOUT/LOGIN to activate their membership in groups: '$sudoers' and '$local_group'." >&2
+
+## Configure local proxy's home; podman's working directory for this user.
 chown -R $local_user:$local_group $alt_home
 find $alt_home -type d -exec chmod 775 {} \+
 find $alt_home -type f -exec chmod 660 {} \+
@@ -106,7 +116,6 @@ grep -q $local_group /etc/subgid || {
 }
 
 ## Verify that this domain user can run podman as the local-proxy user via the wrapper.
-img=alpine
 /usr/local/bin/podman run --rm --volume $alt_home:/mnt/home $img sh -c '
     echo "🚀  Hello from the container : $(whoami)@$(hostname -f) !"
     umask 002

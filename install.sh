@@ -9,12 +9,13 @@
 
     exit 1
 }
-logger "Script run by '$SUDO_USER' as root : '$BASH_SOURCE'"
-
 src=per-user
 dst=/usr/local/bin
-install $src/podman-provision-nologin.sh $dst/ &&
-    install $src/podman.sh $dst/podman &&
+
+bash $src/${APP_PROVISION_SUDOERS} 
+
+install $src/${APP_PROVISION_NOLOGIN} $dst/ &&
+    install $src/${APP_NAME}.sh $dst/${APP_NAME} &&
         echo "✅  Installation complete." ||
             echo "❌  Something failed to install."
 
