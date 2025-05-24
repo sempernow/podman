@@ -17,7 +17,11 @@ domain_user=$SUDO_USER
 admins_group=ad-linux-sudoers
 [[ $1 ]] && groups $SUDO_USER |grep "$admins_group" && domain_user=$1
 
+id "$local_user" >/dev/null 2>&1 && {
+    echo "⚠ User '$local_user' already exists."
 
+    exit 33
+}
 
 app=podman
 alt=/work/$app
@@ -25,7 +29,7 @@ alt_home=$alt/home/$domain_user
 local_user=$app-$domain_user
 local_group=$local_user
 
-grep -e "^$domain_user" /etc/passwd && {
+grep -qe "^$domain_user" /etc/passwd && {
     echo "⚠  This script creates a local account, '$app-$domain_user', for a *non-local* (AD domain) user."
     echo "    However, this user, '$domain_user', is *local*."
     echo "    Local users are advised to run (rootless) Podman from their existing local account."
@@ -53,11 +57,11 @@ seVerify || {
 ## Create a *regular* user (and group), having no login shell,
 ## yet a home directory expected by Podman's rootless (per-user) scheme.
 ## (See podman wrapper: /usr/local/bin/podman .)
-id -un "$local_user" >/dev/null 2>&1 || {
+id "$local_user" >/dev/null 2>&1 || {
     useradd --create-home --home-dir $alt_home --shell /sbin/nologin $local_user
     loginctl enable-linger "$local_user"
 }
-id -un "$local_user" >/dev/null 2>&1 || {
+id "$local_user" >/dev/null 2>&1 || {
     echo "⚠ ERR : FAILed @ useradd : '$local_user' does NOT EXIST."
 
     exit 33
@@ -82,12 +86,16 @@ seVerify || {
     exit 66
 }
 
-grep -q $local_user /etc/subuid &&
-    grep -q $local_group /etc/subgid || {
-        echo "⚠ ERR : FAILed @ subids"
+grep -q $local_user /etc/subuid || {
+    echo "⚠ ERR : FAILed to add subUID range for local user '$local_user'"
+    
+    exit 77
+}
+grep -q $local_group /etc/subgid || {
+    echo "⚠ ERR : FAILed to add subGID range for local group '$local_group'"
 
-        exit 77
-    }
+    exit 78
+}
 
 img=alpine
 podman run --rm --volume $alt_home:/mnt/home $img sh -c '
