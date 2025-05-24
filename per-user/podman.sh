@@ -50,7 +50,7 @@ home="$(getent passwd "$proxy_user" |cut -d: -f6)"
 }
 
 # Ensure working directory is within the proxy's home, else fallback safely.
-[[ "$(pwd)" != "$home"* ]] || {
+[[ "$(pwd)" =~ "$home"* ]] || {
     cd "$home" 2>/dev/null || {
         mkdir -p "/tmp/${invoking_user}"
         cd "/tmp/${invoking_user}" || {
