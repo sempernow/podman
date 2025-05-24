@@ -34,6 +34,7 @@ export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 ## Application declarations
 
 export APP_NAME                := podman
+export APP_TEST_USER           := u2
 export APP_GROUP_ADMINS        := ad-linux-sudoers
 export APP_GROUP_PROVISIONERS  := ${APP_NAME}-provisioners
 export APP_GROUP_LOCAL_PROXY   := ${APP_NAME}-local
@@ -76,5 +77,5 @@ build:
 install: build
 	sudo -E bash install.sh
 teardown:
-	sudo -E bash per-user/podman-unprovision-user.sh u0
+	sudo -E bash per-user/podman-unprovision-user.sh ${APP_TEST_USER}
 
