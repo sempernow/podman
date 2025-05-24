@@ -72,4 +72,4 @@ commit push : html tree mode
 ## Recipes : App
 
 install:
-	bash install.sh
+	sudo bash install.sh
