@@ -45,6 +45,10 @@ export APP_OCI_TEST_IMAGE      := alpine
 ## Recipes
 
 ## Recipes : Meta
+menu :
+	$(INFO) 'Install per-user provisioning and usage scripts for Podman rootless mode '
+	@echo "install      : Build and install it"
+	@echo "commit       : Handle all the Git and FS management"
 
 env:
 	$(INFO) 'Environment'
@@ -59,7 +63,7 @@ mode :
 	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \;
 #	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \;
 tree :
-	tree |tee tree
+	tree -d |tee tree-d
 html :
 	find . -type f ! -path './.git/*' -name '*.md' -exec md2html.exe "{}" \;
 commit push : html tree mode

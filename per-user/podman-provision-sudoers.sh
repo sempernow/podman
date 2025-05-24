@@ -9,6 +9,7 @@
 #
 # - Idempotent
 ######################################################################
+set -euo pipefail
 
 [[ $(whoami) == 'root' ]] || {
     echo '❌  Must RUN AS root' >&2
