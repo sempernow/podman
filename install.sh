@@ -7,7 +7,7 @@
 set -euo pipefail
 
 [[ -n "${SUDO_USER:-}" ]] || {
-    echo "⚠  USAGE: sudo ${BASH_SOURCE##*/}"
+    echo "⚠  USAGE: sudo bash ${BASH_SOURCE##*/}"
 
     exit 1
 }
