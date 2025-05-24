@@ -27,7 +27,7 @@ sudoers=/etc/sudoers.d/$scope
 getent group $scope || groupadd -r $scope
 tee $sudoers <<EOH
 Defaults:%$scope secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
-%$scope ALL=(ALL) NOPASSWD: $self_provision, /usr/bin/env
+%$scope ALL=(ALL) NOPASSWD: /usr/bin/env, $self_provision
 EOH
 chown root:root $sudoers
 chmod 640 $sudoers
@@ -44,4 +44,3 @@ Defaults:%$scope env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
 EOH
 chown root:root $sudoers
 chmod 640 $sudoers
-
