@@ -1,287 +1,388 @@
-# Podman : Rootless Containers | [Chat 2](https://chatgpt.com/share/673a11b8-165c-8009-8412-2dec016a61b7 "ChatGPT.com") | [Chat 3](https://chatgpt.com/share/6700711a-5b14-8009-82f9-decd11ce4f0c "ChatGPT.com") | [Chat 4](https://chatgpt.com/share/6817bc76-62bc-8009-8003-baf013ec9781)
+# Rootless Podman
 
->In rootless Podman, the container’s root user is actually a non-root user on the host, mapped via user namespaces.
+>Provision a Podman environment for unprivileged, non-local (AD) users on RHEL.
 
-### Namespace and UID
+## Overview
 
-Mappings in Rootless Podman:
+There are many corners to this envelope:
 
-- Automatic Namespace Setup: When you run a rootless container with Podman, it automatically sets up the user namespace for that container. Podman uses entries in__ `/etc/subuid` and `/etc/subgid` __to map UIDs and GIDs from the container to the host.__ This means that the __root user inside the container__ (UID `0`) is __mapped to a non-root user on the host__ (typically starting at a high UID, like `100000`, __from host user’s `subuid`/`subgid` range__). 
-    - `myuser:100000:65536` : the root user (UID 0) in the container is mapped to UID 100000 on the host, and this mapping extends for `65536` UIDs (so UID `1` inside the container maps to `100001` on the host, and so on).
+- Lacking privilege, a per-user (rootless) configuration is required:
+    - Podman does not configure remote (AD) users.
+    - Podman creates per-user namespaces using subids only if
+      user is local, regular (non-system), and created after Podman is installed.
+    - An active fully-provisioned login shell is required to initialized a rootless Podman session.
+        - `HOME` is set.
+        - `XDG_RUNTIME_DIR` is set.
+        - DBus Session Bus starts.
+            - Provides user-level IPC.
+    - Linux system users, "`adduser --system ...`",
+      are not provisioned an active login shell, regardless.
+    - Containers running under a rootless process do not survive the user session unless
+      Linger is enabled for that user: `sudo loginctl enable-linger <username>`.
+        - Also required for Podman's systemd integration schemes.
+    - The per-user subid ranges (`subuid`, `subgid`) must be unique per host.
+- Workarounds for AD users (__`$USER`__) is to provision a
+  logically-mapped __local user__ (__`podman-$USER`__)
+  to serve as their Podman service account:
+    1. __No login shell__ (`adduser --shell /sbin/nologin ...`)
+        - To provide a full functional rootless Podman environment,
+          these environment settings must be __explicitly declared__:
+            ```bash
+            cd /tmp
+            sudo -u podman-$USER -- env \
+                HOME=/home/podman-$USER \
+                XDG_RUNTIME_DIR=/run/user/$(id -u podman-$USER) \
+                DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$USER)/bus \
+                podman ...
+            ```
+            - [`podman.sh`](per-user/podman.sh)
+            - Tight security by locking down allowed commands using a group-scoped sudoers drop-in file.
+                - [`provision-podman-sudoers.sh`](per-user/provision-podman-sudoers.sh)
+    2. __Login shell__ (`adduser --shell /bin/bash ...`)
+        - Using SSH shell to trigger an active login session,
+        which provides a __fully functional__ rootless Podman environment.
+            ```bash
+            ssh -i $key podman-$USER@localhost [podman ...]
+            ```
+            - Secure by locked password, so AuthN/AuthZ is *exclusively* by SSH key/tunnel.
 
-__Create__ `subuid`/`subgid` range __per user__
+- Privileged ports, e.g., 80 (HTTP) and 443 (HTTPS), are not allowed.
 
-```bash
-sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 auser
-```
-- This allocates `65536` subordinate UIDs and GIDs to `auser`, starting from `100000`.
-    - A more sophisticated method is required if multiple users are to run podman rootless, 
-    because each user must have their own unique range of `subuid`/`subgid`.
+## Local-user Service Account (per AD user)
 
-### `Dockerfile` mods
+### 1. __No login shell__
 
-```dockerfile
-RUN useradd -m auser
-USER auser
-RUN chown -R auser /path/to/app
-```
+To allow for self-provisioning, the AD user must be member of `podman-sudoers` group,
+which may be either AD or local.
 
-### Host : User Namespaces
-
-In Podman rootless mode, a __container runs in a separate user namespace__, which isolates the user and group IDs inside the container from the ones on the host. Even though a process may run as __`UID 0` (`root`) inside the container__, it is actually __mapped to a non-root user ID on the host__.
-
-### Customizing UID/GID Mappings
-
-You can modify the default UID/GID mappings by editing `/etc/subuid` and `/etc/subgid`. You can also specify custom mappings when running a container using the `--uidmap` and `--gidmap` options in podman run.
-
-```bash
-
-podman run --uidmap 0:100000:1000 --gidmap 0:100000:1000 my-image
-```
-
-#### Issues
-
-- Mounts: When mounting directories from the host into the container, you may run into permission issues if the UIDs/GIDs inside the container don’t map cleanly to the host.
-- Ports: Containers in rootless mode can’t bind to privileged ports (ports < 1024) because the user on the host is not root.
-
-
-## [Persist a Rootless Container](https://chatgpt.com/share/673d366e-0384-8009-a6d3-d7a0c96c41f2 "ChatGPT.com")
-
-
-### Q: 
-
-Rootless podman containers stop when user logs out?
-
-### A:
-
-Yes, rootless Podman containers will stop when the user logs out by default. This is because __they are tied to the user's session__ and their processes terminate when the session ends.
-
-__To prevent rootless Podman containers from stopping upon logout__, 
-you can use the Podman service or systemd integration: 
+#### Admin
 
 ```bash
-app=bbox
-
-# Configure to always restart
-podman run -d --restart=always --name $app busybox sleep 1d
-
-# Generate user-scoped systemd service file : DEPRICATED : use Quadlets
-podman generate systemd --new --name $app --files
-
-# Move the systemd service file:
-mkdir -p ~/.config/systemd/user 
-mv container-$app.service ~/.config/systemd/user/
-
-# Enable/Start the service on user login
-systemctl --user enable --now container-$app.service
-
-# Enable lingering
-loginctl enable-linger $(whoami)
-
-# Teardown
-podman container stop $app
-podman container rm $app 
+sudo install.sh
 ```
-- The `loginctl enable-linger` command allows user-specific services (including systemd units managed by the `--user` flag) to keep running even when the user is not logged in. __Without enabling lingering, systemd will stop all user services when you log out__, which includes your Podman containers.
 
-This approach ensures that your rootless Podman containers 
-remain running even when you log out.
+- [`podman-provision-sudoers.sh`](per-user/podman-provision-sudoers.sh)
+- [`podman-provision-nologin.sh`](per-user/podman-provision-nologin.sh)
+- [`podman-unprovision-user.sh`](per-user/podman-unprovision-user.sh)
+- [`podman.sh`](per-user/podman.sh)
 
-## Quadlets 
+#### User(s)
 
-__Quadlets are essentially a systemd unit generator specifically for containers__. Instead of manually writing complex `.service` files, you can use `.container` files (a simplified format) to define container behaviors, such as the image to use, environment variables, volumes, and restart policies.
+Users must be member of the group declared in the apropos group-scoped sudoers file that allows such access.
 
-These `.container` files are easier to write and maintain compared to traditional `.service` files that might call podman run commands. __Systemd then reads these Quadlet `.container` files and generates the appropriate `.service` units behind the scenes.__
+1. Self provision a fully-functional rootless Podman environment
+    ```bash
+    u0@a0 # unprivileged user
+    ☩ sudo podman-provision-nologin.sh
+    ```
+1. Use it to run Podman commands
+    ```bash
+    u0@a0 # unprivileged user
+    ☩ podman run --rm --volume $work:/mnt/home alpine sh -c '
+        echo $(whoami)@$(hostname -f)
+        umask 002
+        rm -f /mnt/home/test-write-access-*
+        ls -hl /mnt/home
+        touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
+        ls -hl /mnt/home
+    '
+    root@65f76044ffcb
+    total 0
+    total 0
+    -rw-rw-r--    1 root     root     0 ... test-write-access-2025-05-11T19.08.32Z
 
-Setup:
+    ☩ ls /work/podman/home/u0
+    total 0
+    -rw-rw-r--. 1 podman-u0 podman-u0 0 ... test-write-access-2025-05-11T19.08.32Z
+
+    ☩ ls -n /work/podman/home/u0
+    total 0
+    -rw-rw-r--. 1 50004 50004 0         ... test-write-access-2025-05-11T19.08.32Z
+    ```
+    - Podman rootless : The `root` user of container is *not* `root` at host,
+      but rather maps to host user (`podman-u0`) who ran the command.
+
+### 2. __Login shell__
+
+TODO
+
+## ❌ Common Service Account
+
+>A common service account for multiple developers running rootless Podman is technically possible,
+>but **collisions and subtle failures are highly likely**,
+>and **increase rapidly with team size** and intensity of usage.
+
+---
+
+### ⚠️ **Key Problems with a Shared Podman Account**
+
+Rootless Podman heavily relies on **per-user namespaces**, **cgroups**, and **runtime directories** that are not designed for concurrent use by multiple interactive users under a shared UID.
+
+Here’s a breakdown of what can and will go wrong:
+
+---
+
+#### 1. **Shared XDG\_RUNTIME\_DIR**
+
+By default, rootless Podman uses:
+
+```
+$XDG_RUNTIME_DIR = /run/user/$(id -u)
+```
+
+In a shared account, everyone has the **same UID**, so they share `/run/user/1001`, for example.
+
+* Podman creates UNIX domain sockets here (e.g., `/run/user/1001/podman/podman.sock`)
+* `systemd` user services are also tied to this directory
+
+**Collision symptoms:**
+
+* One user kills or restarts the Podman socket, interrupting others
+* Containers show up across sessions (even when they shouldn’t)
+* Podman client fails to connect because the socket is in use or misowned
+
+---
+
+#### 2. **Volume, Image, and Container Name Clashes**
+
+All container objects are stored in a single namespace (under that user’s `$HOME/.local/share/containers` or `/var/tmp/containers/...`).
+
+**Collision symptoms:**
+
+* Containers and volumes have non-unique names
+* Conflicting ports (e.g., two users both try to run something on `localhost:8080`)
+* One user’s `podman rm` or `podman volume rm` breaks another’s environment
+
+---
+
+#### 3. **File Ownership and Permissions**
+
+Files written by Podman in shared directories (volumes, mounts, container data) are owned by **the service account**, not the real invoking user.
+
+This means:
+
+* Users can accidentally delete or modify each other’s data
+* There is **no meaningful ownership enforcement** unless you wrap every command in sandboxing (like `sudo -u`, namespaces, ACLs)
+
+---
+
+#### 4. **Trouble with `loginctl` / lingering**
+
+Even if `loginctl enable-linger podmaners` is active, only **one instance** of the user service is assumed to be running.
+
+If multiple users:
+
+* Try to run `podman system service` in the background (e.g., for CLI clients)
+* Use `podman generate systemd` and launch containers on login
+
+You'll encounter unpredictable behavior or crashes.
+
+---
+
+#### 5. **Security and Auditing**
+
+* Logs show actions as `podmaners`, not the real user
+* There’s no accountability unless you manually inject tracing (e.g., `sudo -u podmaners --preserve-env=REAL_USER=alice`)
+* A compromised Podman container or build process could access another developer’s mounts or data
+
+---
+
+### 🛑 Bottom Line: **Shared Account Not Viable at Scale**
+
+> For **one-off automation or tightly scripted CI/CD tasks**, a shared rootless Podman account might work.
+
+> But for **interactive, multi-user development**, it's **fragile, unsafe, and increasingly error-prone**.
+
+---
+
+### ✅ Recommended Alternative for \~12 Developer Team
+
+Provision **a dedicated Podman service account per developer**, either:
+
+* ~~**Mapped from AD** (e.g., `jdoe@domain` → `podman-jdoe`)~~
+    - Not viable; Podman does not recognize AD users,
+      so namespaces (subid assignments) would have to be managed.
+* Or **locally created accounts** named after users (`podman-alice`, `podman-bob`, etc.)
+
+And provision:
+
+* `/etc/subuid` and `/etc/subgid` entries
+* `loginctl enable-linger`
+* Proper SELinux `restorecon` on home dir
+* Optionally restrict shell access and use `sudo -u` or `ssh` as interface
+
+---
+
+## `su` vs `sudo -u`
+
+### **Shell Requirements: `su` vs `sudo -u`**
+
+| **Command**           | **Requires Login Shell?** | **Works with `nologin`?** | **Best For** |
+|-----------------------|---------------------------|---------------------------|--------------|
+| `su - $name`          | ✅ **Yes** (`/bin/bash`)  | ❌ No (`nologin` fails)  | Interactive sessions |
+| `sudo -u $name`       | ❌ **No**                 | ✅ Yes (ignores shell)   | __Service accounts__ |
+
+Where `$name` is that of the Podman (service) account common to all users.
+
+---
+
+### **Key Differences**
+
+#### **1. `su` (Switch User)**
+- **Requires a valid login shell** (e.g., `/bin/bash`, `/bin/sh`)
+- **Fails if shell is `/sbin/nologin` or `/bin/false`**:
+    ```bash
+    su - podmaners  # Error: "This account is currently not available."
+    ```
+- **Bypass (temporarily, not recommended)**:
+    ```bash
+    sudo su -s /bin/bash podmaners  # Force shell
+    ```
+
+#### **2. `sudo -u` (Run as User)**
+- **Ignores the user's shell** – works even with `/sbin/nologin`
+- **Ideal for service accounts**:
+    ```bash
+    sudo -u podmaners podman info  # Works!
+    ```
+- **Logs commands** in `/var/log/secure` (better auditing).
+
+---
+
+### **Why This Matters for Podman Service Accounts**
+- **Security**: Service accounts should **never** have a shell (`/sbin/nologin`).
+- **Podman needs `sudo -u`**:
+    ```bash
+    # Correct way to run Podman as a service account
+    sudo -u podmaners podman run --rm alpine echo "Hello"
+    ```
+- **`su` breaks security**: Giving a shell to `podmaners` defeats the purpose of a service account.
+
+---
+
+### **Best Practices**
+1. **Always use `sudo -u` for service accounts**:
+    ```bash
+    sudo -u podmaners podman [command]
+    ```
+2. **Never change `nologin` to `bash`**:
+    ```bash
+    # ❌ Dangerous (don't do this!)
+    sudo usermod -s /bin/bash podmaners
+    ```
+3. **If you need debugging**:
+    ```bash
+    # Temporary shell (avoid unless necessary)
+    sudo -u podmaners bash -c 'whoami && podman info'
+    ```
+
+---
+
+### **Example: Secure Podman Setup**
+```bash
+# Create service account (no shell, no home dir)
+sudo useradd -r -s /sbin/nologin -d /var/empty podmaners
+
+# Verify
+sudo -u podmaners podman info  # ✅ Works
+su - podmaners                 # ❌ Fails (as intended)
+```
+
+---
+
+### **Final Answer**
+✅ **Use `sudo -u podmaners`** – it bypasses shell checks and is secure.
+❌ **Avoid `su` for service accounts** – it requires a shell and weakens security.
+
+Need to debug a `nologin` account? Use:
 
 ```bash
-app=bbox
-
-# Create the systemd .container file
-mkdir -p ~/.config/systemd/user 
-cat <<-EOH |tee ~/.config/systemd/user/$app.container
-[Container]
-Image=docker.io/library/busybox:latest
-Name=$app
-Command=/usr/bin/start-app --flag
-Volume=/host/data:/data:rw
-Volume=/host/config:/config:ro
-Network=host
-Port=8080:80
-Environment=ENV_VAR=value
-Environment=TLS_CERT=/config/cert.pem
-Environment=TLS_KEY=/config/key.pem
-WorkDir=/app
-Restart=always
-EOH
-
-# Enable/Start the service on user login
-systemctl --user enable --now $app.container
-
-# Enable lingering
-loginctl enable-linger $(whoami)
-
+sudo -u podmaners bash -c '[commands]'  # Temporary exception
 ```
 
-This approach is cleaner and recommended if you are seeing warnings about Quadlets. Quadlets simplify the management of containers using systemd while retaining the flexibility of systemd service management.
+
+### Further Comparison
 
 
+### 🔹 **Scheme A: `sudo -u podmaners podman`**
 
-## `podman play kube` 
+Users invoke Podman indirectly:
 
-Define the pod and its containers declaratively using **Podman's `podman play kube`** feature. 
-This allows you to describe the entire pod (including its containers, volumes, and networking) 
-in a **K8s-compatible YAML file**. The systemd service can then use this YAML file 
-to start and manage the pod without requiring out-of-band `podman` commands.
-
-Here’s how to do it:
-
----
-
-### 1. **Create a K8s-Compatible YAML File**
-Define the pod and its containers in a YAML file. Save it as `/path/to/registry-pod.yaml`:
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: registry-pod
-spec:
-  containers:
-    - name: registry
-      image: docker.io/library/registry:2
-      volumeMounts:
-        - name: registry-data
-          mountPath: /var/lib/registry
-      ports:
-        - containerPort: 5000
-
-    - name: nginx
-      image: docker.io/library/nginx:alpine
-      volumeMounts:
-        - name: nginx-config
-          mountPath: /etc/nginx/conf.d
-        - name: nginx-ssl
-          mountPath: /etc/nginx/ssl
-      ports:
-        - containerPort: 443
-
-  volumes:
-    - name: registry-data
-      hostPath:
-        path: /path/to/registry/data
-        type: Directory
-    - name: nginx-config
-      hostPath:
-        path: /path/to/nginx/conf.d
-        type: Directory
-    - name: nginx-ssl
-      hostPath:
-        path: /path/to/nginx/ssl
-        type: Directory
-```
-
-- Replace `/path/to/registry/data` with the directory for the registry data.
-- Replace `/path/to/nginx/conf.d` and `/path/to/nginx/ssl` with the paths to your NGINX configuration and TLS certificates.
+* The service account has **no shell** (`/sbin/nologin`)
+* User is granted `sudo` rights to run commands **as `podmaners`**, with a tightly scoped `sudoers` rule:
+    ```bash
+    joe ALL=(podmaners) NOPASSWD: /usr/bin/podman *
+    ```
+* No interactive session is allowed for `podmaners`
 
 ---
 
-### 2. **Create the NGINX Configuration**
-Create the NGINX configuration file for the registry at `/path/to/nginx/conf.d/registry.conf`:
+### 🔹 **Scheme B: `ssh podmaners@localhost`**
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name registry.example.com;
+Users invoke Podman interactively:
 
-    ssl_certificate /etc/nginx/ssl/registry.crt;
-    ssl_certificate_key /etc/nginx/ssl/registry.key;
-
-    client_max_body_size 0; # Disable body size check for large uploads
-
-    location / {
-        proxy_pass http://localhost:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-- Replace `registry.example.com` with your domain.
-- Place your TLS certificate and key in `/path/to/nginx/ssl/registry.crt` and `/path/to/nginx/ssl/registry.key`.
+* The `podmaners` account has a shell (e.g., `/bin/bash`)
+* The password is **locked**
+* Only public key access is allowed (users’ SSH keys placed in `~podmaners/.ssh/authorized_keys`)
+* Users `ssh` into the account and run Podman normally
 
 ---
 
-### 3. **Create a Systemd Service**
-Create a systemd service file to manage the pod using the YAML file. Save it as `/etc/systemd/system/registry-pod.service`:
+### 🔒 **Security Comparison**
 
-```ini
-[Unit]
-Description=CNCF Distribution Registry Pod (Podman)
-After=network.target
-
-[Service]
-ExecStart=/usr/bin/podman play kube /path/to/registry-pod.yaml
-ExecStop=/usr/bin/podman pod stop -t 10 registry-pod
-ExecStopPost=/usr/bin/podman pod rm -f registry-pod
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-- Replace `/path/to/registry-pod.yaml` with the path to your YAML file.
-
-Reload systemd and start the service:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl start registry-pod
-sudo systemctl enable registry-pod
-```
+| Feature                       | Scheme A: `sudo -u`                                                        | Scheme B: `ssh localhost`                                                            |
+| ----------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **Access Surface**            | Limited to `podman` command via `sudoers`                                  | Full interactive shell if not further restricted                                     |
+| **User Auditing**             | Logs `sudo` invocations (audit trail)                                      | Harder to attribute actions to specific users without per-key `command=` restriction |
+| **Privilege Escalation Risk** | Low, if `sudoers` is tight                                                 | Higher — any bug or misconfigured shell environment might be exploitable             |
+| **Isolation Between Users**   | Weak — shared user means shared state (UID, XDG\_RUNTIME\_DIR, containers) | Same weakness unless separate users are used                                         |
+| **User Convenience**          | Scriptable but less flexible                                               | Fully interactive; user can run shell + Podman tooling                               |
+| **SELinux Compatibility**     | Controlled by calling user (via `sudo`)                                    | Depends on SSH session context; easier to misconfigure SELinux domains               |
+| **Revocation**                | Simple — remove sudoers line                                               | Must remove user’s SSH key manually                                                  |
 
 ---
 
-### 4. **Verify the Setup**
-- Test the registry by pushing/pulling an image using the NGINX proxy:
-  ```bash
-  docker pull alpine
-  docker tag alpine registry.example.com/alpine
-  docker push registry.example.com/alpine
-  ```
-- Check the status of the pod and containers:
-  ```bash
-  podman pod ps
-  podman ps
-  ```
+### 🔐 Verdict: **Scheme A is more secure by default**
+
+> **Why:**
+
+* It **limits users to exactly one binary** (Podman) under a shared account.
+* No interactive shell or login session is allowed.
+* Actions are **logged in `sudo` logs** with the invoking user’s identity.
+* It respects privilege separation better and is **easier to audit and revoke**.
 
 ---
 
-### 5. **Optional: Secure the Registry**
-- Add authentication to the registry by configuring HTTP basic auth or integrating with an external authentication service.
-- Use Podman's secrets management for secure handling of credentials.
+### 🛠️ If You Must Use Scheme B (SSH):
+
+* Use per-user SSH keys with `command=` in `authorized_keys`, e.g.:
+
+    ```bash
+    command="/usr/bin/podman $SSH_ORIGINAL_COMMAND",no-agent-forwarding,no-pty ssh-rsa AAAAB3... user@domain
+    ```
+* Lock down the shell with:
+
+    ```bash
+    chsh -s /sbin/nologin podmaners
+    ```
+
+  and use `ForceCommand` in `sshd_config`:
+
+    ```bash
+    Match User podmaners
+      ForceCommand /usr/bin/podman
+      PermitTTY no
+      AllowTcpForwarding no
+    ```
+* Monitor logs to track usage.
 
 ---
 
-### Summary
-This approach uses a **declarative YAML file** to define the pod and its containers, which is then managed by a **systemd service**. The `podman play kube` command reads the YAML file and creates the pod, ensuring that the entire setup is self-contained and reproducible without requiring out-of-band `podman` commands.
-
-
-### &nbsp;
-<!-- 
+<!--
 
 # Markdown Cheatsheet
 
 [Markdown Cheatsheet](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet "Wiki @ GitHub")
-
-
-# Link @ (HTML | MD)
-
-([HTML](file:///d:/1%20Data/IT/___.html "@ browser") | [MD](file:///d:/1%20Data/IT/___.md "___"))   
-
 
 # Bookmark
 
@@ -292,4 +393,3 @@ This approach uses a **declarative YAML file** to define the pod and its contain
 <a name="foo"></a>
 
 -->
-

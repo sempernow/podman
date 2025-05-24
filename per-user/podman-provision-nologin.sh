@@ -22,10 +22,10 @@ logger "Script run by '$SUDO_USER' via sudo : '$BASH_SOURCE'"
 
 domain_user=$SUDO_USER
 ## Allow domain admins to select the AD user
-admins_group=ad-linux-sudoers
+admins_group=${APP_GROUP_ADMINS:-APP_GROUP_ADMINS}
 [[ $1 ]] && groups $SUDO_USER |grep "$admins_group" && domain_user=$1
 
-app=podman
+app=${APP_NAME:-podman}
 alt=/work/$app
 alt_home=$alt/home/$domain_user
 local_user=$app-$domain_user
@@ -75,7 +75,7 @@ id "$local_user" >/dev/null 2>&1 || {
     exit 33
 }
 ## Allow domain user to self-provision.
-sudoers=podman-provisioners
+sudoers={$APP_GROUP_PROVISIONERS:-APP_GROUP_PROVISIONERS}
 groups "$domain_user" |grep $sudoers     || usermod -aG "$sudoers" "$domain_user"
 ## Allow domain user access to home of its provisioned local user.
 groups "$domain_user" |grep $local_group || usermod -aG "$local_group" "$domain_user" &&
@@ -105,8 +105,9 @@ grep -q $local_group /etc/subgid || {
     exit 78
 }
 
+## Verify that this domain user can run podman as the local-proxy user via the wrapper.
 img=alpine
-podman run --rm --volume $alt_home:/mnt/home $img sh -c '
+/usr/local/bin/podman run --rm --volume $alt_home:/mnt/home $img sh -c '
     echo "🚀  Hello from the container : $(whoami)@$(hostname -f) !"
     umask 002
     ls -hl /mnt/home/test-*

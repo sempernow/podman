@@ -75,7 +75,7 @@ dbus_socket="$runtime_dir/bus"
 # Log the meta
 logger "Script '$BASH_SOURCE' was invoked by '$invoking_user' to run 'sudo -u $proxy_user ...' with args: $*"
 
-# Execute podman as the proxy user in an environment required by Podman's rootless scheme.
+# Execute podman as the proxy user in an environment required of Podman's rootless mode.
 exec sudo -u "$proxy_user" -- env \
     HOME="$home" \
     XDG_RUNTIME_DIR="$runtime_dir" \

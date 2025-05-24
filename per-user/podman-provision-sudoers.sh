@@ -16,11 +16,11 @@
     exit 11
 }
 
-app=podman
+app=${APP_NAME}
 
 ## Allow (AD) user to self provision:
 ##  sudo $self_provision
-scope=$app-provisioners
+scope=${$APP_GROUP_PROVISIONERS}
 self_provision=/usr/local/bin/$app-provision-nologin.sh
 sudoers=/etc/sudoers.d/$scope
 getent group $scope || groupadd -r $scope
@@ -33,7 +33,7 @@ chmod 640 $sudoers
 
 ## Limit the local proxy user to run only the podman binary in its declared environment:
 ##  sudo -u $app-$USER -- env ... $app ...
-scope=$app-local
+scope=${APP_GROUP_LOCAL_USERS}
 sudoers=/etc/sudoers.d/$scope
 getent group $scope || groupadd -r $scope
 tee $sudoers <<EOH

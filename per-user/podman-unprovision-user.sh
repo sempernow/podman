@@ -24,7 +24,7 @@
 
 [[ "$1" ]] && domain_user="$1" || domain_user="$SUDO_USER"
 
-app=podman
+app=${APP_NAME}
 alt=/work/$app
 alt_home=$alt/home/$domain_user
 local_user="$app-$domain_user"
@@ -49,8 +49,8 @@ grep -qe "^$local_group" /etc/group &&
     groupmems --group "$local_group" --purge &&
         groupdel "$local_group"
 
-# Remove from sudoers group
-sudoers=podman-sudoers
+# Remove domain user from app-provisioners group
+sudoers=${APP_GROUP_PROVISIONERS}
 gpasswd -d "$domain_user" $sudoers
 
 ## Delete all fcontext  rules
