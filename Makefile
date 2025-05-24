@@ -71,5 +71,8 @@ commit push : html tree mode
 
 ## Recipes : App
 
-install:
-	sudo bash install.sh
+build:
+	bash build.sh
+install: build
+	sudo -E bash install.sh
+

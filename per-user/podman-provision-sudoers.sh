@@ -21,8 +21,8 @@ app=${APP_NAME}
 
 ## Allow (AD) user to self provision:
 ##  sudo $self_provision
-scope=${$APP_GROUP_PROVISIONERS}
-self_provision=/usr/local/bin/${APP_SCRIPT_PROVISION}
+scope=${APP_GROUP_PROVISIONERS}
+self_provision=/usr/local/bin/${APP_PROVISION_NOLOGIN}
 sudoers=/etc/sudoers.d/$scope
 getent group $scope || groupadd -r $scope
 tee $sudoers <<EOH
@@ -44,3 +44,4 @@ Defaults:%$scope env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
 EOH
 chown root:root $sudoers
 chmod 640 $sudoers
+
