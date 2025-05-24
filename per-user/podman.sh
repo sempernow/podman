@@ -14,15 +14,15 @@ set -euo pipefail
 
 bin=/usr/bin/podman
 [[ -x $bin ]] || {
-    echo "ERR: Podman binary not found at $bin" >&2
+    echo "⚠  ERR: Podman binary NOT FOUND at '$bin'" >&2
 
     exit 11
 }
 
 # Require a podman subcommand.
 [[ $# -eq 0 ]] && {
-    echo "ERR: No podman subcommand provided." >&2
-    echo "Usage: podman <subcommand> [...args]" >&2
+    echo "⚠  ERR: podman REQUIREs a subcommand." >&2
+    echo -e "\nUSAGE : podman <subcommand> [...args]" >&2
 
     exit 22
 }
@@ -36,7 +36,7 @@ grep -qe "^$invoking_user:" /etc/passwd &&
 
 # Validate the invoking-user's proxy.
 id "$proxy_user" &>/dev/null || {
-    echo "ERR: Proxy user '$proxy_user' does not exist. Run the provisioning script first." >&2
+    echo "⚠  ERR: Proxy user '$proxy_user' does NOT EXIST. Run the provisioning script first." >&2
 
     exit 33
 }
@@ -44,7 +44,7 @@ id "$proxy_user" &>/dev/null || {
 # Validate the proxy's home directory.
 home="$(getent passwd "$proxy_user" |cut -d: -f6)"
 [[ -z "$home" || ! -d "$home" ]] && {
-    echo "ERR: Home directory '$home' for user '$proxy_user' does not exist" >&2
+    echo "⚠  ERR: Home directory '$home' for user '$proxy_user' does NOT EXIST." >&2
 
     exit 44
 }
@@ -54,7 +54,7 @@ home="$(getent passwd "$proxy_user" |cut -d: -f6)"
     cd "$home" 2>/dev/null || {
         mkdir -p "/tmp/${invoking_user}"
         cd "/tmp/${invoking_user}" || {
-            echo 'WARN: Failed to set working directory. Proceeding from /' >&2
+            echo '🚧  WARN: Failed to set working directory. Proceeding from /' >&2
             cd /
         }
     }
@@ -66,19 +66,18 @@ dbus_socket="$runtime_dir/bus"
 
 # Validate runtime dir exists (loginctl linger may be required).
 [[ ! -d "$runtime_dir" ]] && {
-    echo "ERR: Runtime directory '$runtime_dir' does not exist. Enable linger for $proxy_user." >&2
-    echo "Run: loginctl enable-linger $proxy_user" >&2
+    echo "⚠  ERR: Runtime directory '$runtime_dir' does not exist. Enable linger for $proxy_user." >&2
+    echo -e "\nRun: loginctl enable-linger $proxy_user" >&2
 
     exit 55
 }
 
 # Log the meta
-logger "Script $BASH_SOURCE invoked by '$invoking_user' : Args: $*"
+logger "Script '$BASH_SOURCE' having 'exec sudo -u $proxy_user ...' was invoked by '$invoking_user' : Args: $*"
 
-# Execute podman as the proxy user in the environment required by Podman's rootless scheme.
+# Execute podman as the proxy user in an environment required by Podman's rootless scheme.
 exec sudo -u "$proxy_user" -- env \
     HOME="$home" \
     XDG_RUNTIME_DIR="$runtime_dir" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=$dbus_socket" \
     "$bin" "$@"
-
