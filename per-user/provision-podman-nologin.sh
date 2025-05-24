@@ -17,6 +17,8 @@ domain_user=$SUDO_USER
 admins_group=ad-linux-sudoers
 [[ $1 ]] && groups $SUDO_USER |grep "$admins_group" && domain_user=$1
 
+
+
 app=podman
 alt=/work/$app
 alt_home=$alt/home/$domain_user
@@ -51,20 +53,20 @@ seVerify || {
 ## Create a *regular* user (and group), having no login shell,
 ## yet a home directory expected by Podman's rootless (per-user) scheme.
 ## (See podman wrapper: /usr/local/bin/podman .)
-id -un $local_user >/dev/null 2>&1 || {
+id -un "$local_user" >/dev/null 2>&1 || {
     useradd --create-home --home-dir $alt_home --shell /sbin/nologin $local_user
-    loginctl enable-linger $local_user
+    loginctl enable-linger "$local_user"
 }
-id -un $local_user >/dev/null 2>&1 || {
-    echo "⚠ ERR : FAILed @ useradd : $local_user does NOT EXIST."
+id -un "$local_user" >/dev/null 2>&1 || {
+    echo "⚠ ERR : FAILed @ useradd : '$local_user' does NOT EXIST."
 
     exit 33
 }
 ## Allow domain user to self-provision.
 sudoers=podman-sudoers
-groups $domain_user |grep $sudoers     || usermod -aG $sudoers $domain_user
+groups "$domain_user" |grep $sudoers     || usermod -aG "$sudoers" "$domain_user"
 ## Allow domain user access to home of its provisioned local user.
-groups $domain_user |grep $local_group || usermod -aG $local_group $domain_user &&
+groups "$domain_user" |grep $local_group || usermod -aG "$local_group" "$domain_user" &&
     echo "🚧 User '$domain_user' MUST LOGOUT/LOGIN to activate their membership in groups: '$sudoers' and '$local_group'."
 
 chown -R $local_user:$local_group $alt_home
@@ -89,11 +91,11 @@ grep -q $local_user /etc/subuid &&
 
 img=alpine
 podman run --rm --volume $alt_home:/mnt/home $img sh -c '
-    echo "🚀 Hello from $(whoami) in container $(hostname -f)!"
+    echo "🚀 Hello from the container : $(whoami)@$(hostname -f) !"
     umask 002
-    ls -hl /mnt/home
+    ls -hl /mnt/home/test-*
     touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
-    ls -hl /mnt/home
+    ls -hl /mnt/home/test-*
 '
 
 echo "✅ Provision complete."
