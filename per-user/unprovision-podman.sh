@@ -82,4 +82,4 @@ grep "$local_group" /etc/subgid &&
 loginctl user-status "$local_user" 2>/dev/null |command grep -q Linger &&
     echo "❌ ERR : Linger remains enabled for '$local_group'" &&
         exit 80 ||
-            echo "✅ Teardown of '$local_user' and artifacts complete"
+            echo "✅ Teardown of '$local_user' and artifacts is complete."
