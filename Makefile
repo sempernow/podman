@@ -75,4 +75,6 @@ build:
 	bash build.sh
 install: build
 	sudo -E bash install.sh
+teardown:
+	sudo -E bash per-user/podman-unprovision-user.sh u0
 
