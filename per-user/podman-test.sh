@@ -11,8 +11,9 @@ ok(){
     - Pulled an image from an OCI registry: '$img' .
     - Ran its container with a bind mount to your local-proxy user's home directory.
     - Created a file in the container, writing it to the mounted directory (available at the host).
-        * Note OWNER:GROUP of its 'root' author at the host:
     "
+    echo -e "\n🔍  Note OWNER:GROUP of its 'root' author at the host ($(hostname -f)):"
+    echo "@ $(hostname -f)"
     ls -hl $alt_home
     echo -e '\n🧪  Next, try it yourself ...
     home="$(getent passwd "podman-$(id -un)" |cut -d: -f6)"
