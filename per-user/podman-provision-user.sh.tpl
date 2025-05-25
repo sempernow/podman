@@ -129,33 +129,10 @@ grep -q $local_group /etc/subgid || {
 }
 
 echo -e "\n✅  Provision complete.\n"
-ok(){
-    echo -e "\n✅  Container test complete.\n"
-    echo "⚡  Podman ran successfully in rootless mode under your local proxy's namespace ...
-    - Pulled an image from an OCI registry: '$img' .
-    - Ran its container with a bind mount to your local-proxy user's home directory.
-    - Created a file in the container, writing it to the mounted directory (available at the host).
-        * See the file at host, '$alt_home/', and note OWNER:GROUP of its 'root' author.
-    "
-    echo -e '🧪  Next, try ...
-    home="$(getent passwd "podman-$(id -un)" |cut -d: -f6)"
-    img='"$img"'
-    podman run --rm --volume $home:/mnt/home $img sh -c '"'touch /mnt/home/another-test-file;ls -hl /mnt/home'"
-}
+
 ## Verify that this domain user can run podman as the otherwise-unprivileged local-proxy user via the explicitly-declared wrapper script.
 echo -e "📦  Verify by running a container as yourself (domain user):"
 su "$domain_user" -c "/usr/local/bin/podman-test.sh $alt_home $img"
 
 exit $? 
-#######
-
-/usr/local/bin/podman run --rm --volume $alt_home:/mnt/home $img sh -c '
-    echo "🚀  Hello from container $(hostname -f) running as $(whoami) (container context) !"
-    umask 002
-    ls -hl /mnt/home
-    touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
-    ls -hl /mnt/home
-' && ok || echo "⚠  Podman's attempt to run a container in rootless mode (under the local-proxy user's namespace), having a bind-mount, has failed."
-
-exit $?
 #######
