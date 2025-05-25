@@ -18,8 +18,9 @@ bash $src/${APP_PROVISION_SUDOERS}
 
 install $src/${APP_PROVISION_USER} $dst/ &&
     install $src/${APP_NAME}.sh $dst/${APP_NAME} &&
-        echo "✅  Installation complete." ||
-            echo "❌  Something failed to install."
+        install $src/${APP_NAME}-test.sh $dst/ &&
+            echo "✅  Installation complete." ||
+                echo "❌  Something failed to install."
 
 exit $?
 #######
@@ -27,6 +28,7 @@ exit $?
 install $src/podman-provision-sudoers.sh $dst/ &&
     install $src/podman-provision-nologin.sh $dst/ &&
         install $src/podman-unprovision-user.sh $dst/ &&
-            install $src/podman.sh $dst/podman &&
-                echo "✅  Installation complete." ||
-                    echo "❌  Something failed to install."
+            install $src/podman-test.sh $dst/ &&
+                install $src/podman.sh $dst/podman &&
+                    echo "✅  Installation complete." ||
+                        echo "❌  Something failed to install."

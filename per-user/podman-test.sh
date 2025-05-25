@@ -5,10 +5,6 @@ img=$2
 : "${alt_home:?Arg 1 is home dir of local-proxy user}"
 : "${img:?Arg 2 is OCI image}"
 
-# [[ -d $1 ]] || exit 1
-# [[ $2 ]] || exit 2
-
-
 ok(){
     echo -e "\n✅  Container test complete.\n"
     echo "⚡  Podman ran successfully in rootless mode under your local proxy's namespace ...

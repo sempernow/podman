@@ -143,8 +143,14 @@ ok(){
     podman run --rm --volume $home:/mnt/home $img sh -c '"'touch /mnt/home/another-test-file;ls -hl /mnt/home'"
 }
 ## Verify that this domain user can run podman as the otherwise-unprivileged local-proxy user via the explicitly-declared wrapper script.
+echo -e "📦  Verify by running a container as yourself (domain user):"
+su "$domain_user" -c "/usr/local/bin/podman-test.sh $alt_home $img"
+
+exit $? 
+#######
+
 /usr/local/bin/podman run --rm --volume $alt_home:/mnt/home $img sh -c '
-    echo "🚀  Hello from container $(hostname -f) running as $(whoami) (container context only) !"
+    echo "🚀  Hello from container $(hostname -f) running as $(whoami) (container context) !"
     umask 002
     ls -hl /mnt/home
     touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
@@ -153,4 +159,3 @@ ok(){
 
 exit $?
 #######
-
