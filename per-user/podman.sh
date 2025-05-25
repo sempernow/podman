@@ -84,9 +84,3 @@ exec sudo -u "$proxy_user" \
 
 exit $?
 #######
-
-## After provisioning, try:
-home="$(getent passwd "podman-$(id -un)" |cut -d: -f6)"
-img=busybox
-podman run --rm --volume $home:/mnt/home $img sh -c 'touch /mnt/home/foo;ls -hl /mnt/home'
-

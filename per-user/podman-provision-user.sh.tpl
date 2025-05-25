@@ -126,16 +126,21 @@ grep -q $local_group /etc/subgid || {
     exit 78
 }
 
+echo -e "\n✅  Provision complete.\n"
 ok(){
-    echo "✅  Provision complete."
-    echo "⚡  Having ran podman in rootless mode, you successfully ... 
-    - Pulled an OCI image
-    - Ran its bind-mounted container having a bind mount (host-to-container).
-    - Create a file in the container at the mounted directory that is also available at the host!
-        * See file at '$alt_home/'
+    echo -e "\n✅  Container test complete.\n"
+    echo "⚡  Podman ran successfully in rootless mode under your local proxy's namespace ...
+    - Pulled an image from an OCI registry: '$img' .
+    - Ran its container with a bind mount to your local-proxy user's home directory.
+    - Created a file in the container, writing it to the mounted directory (available at the host).
+        * See the file at '$alt_home/'
     "
+    echo -e '🧪  Next, try ...
+    home="$(getent passwd "podman-$(id -un)" |cut -d: -f6)"
+    img='"$img"'
+    podman run --rm --volume $home:/mnt/home $img sh -c '"'touch /mnt/home/another-test-file;ls -hl /mnt/home'"
 }
-## Verify that this domain user can run podman as the local-proxy user via the wrapper.
+## Verify that this domain user can run podman as the otherwise-unprivileged local-proxy user via the explicitly-declared wrapper script.
 /usr/local/bin/podman run --rm --volume $alt_home:/mnt/home $img sh -c '
     echo "🚀  Hello from the container : $(whoami)@$(hostname -f) !"
     umask 002
@@ -146,9 +151,3 @@ ok(){
 
 exit $?
 #######
-
-## After provisioning, try:
-home="$(getent passwd "podman-$(id -un)" |cut -d: -f6)"
-img=busybox
-podman run --rm --volume $home:/mnt/home $img sh -c 'touch /mnt/home/another-test-file;ls -hl /mnt/home'
-
