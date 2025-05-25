@@ -126,8 +126,15 @@ grep -q $local_group /etc/subgid || {
     exit 78
 }
 
-echo "✅  Provision complete."
-echo
+ok(){
+    echo "✅  Provision complete."
+    echo "⚡  Having ran podman in rootless mode, you successfully ... 
+    - Pulled an OCI image
+    - Ran its bind-mounted container having a bind mount (host-to-container).
+    - Create a file in the container at the mounted directory that is also available at the host!
+        * See file at '$alt_home/'
+    "
+}
 ## Verify that this domain user can run podman as the local-proxy user via the wrapper.
 /usr/local/bin/podman run --rm --volume $alt_home:/mnt/home $img sh -c '
     echo "🚀  Hello from the container : $(whoami)@$(hostname -f) !"
@@ -135,12 +142,7 @@ echo
     ls -hl /mnt/home
     touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
     ls -hl /mnt/home
-' && echo "⚡  Having ran podman in rootless mode, you successfully ... 
-    - Pulled an OCI image
-    - Ran its bind-mounted container having a bind mount (host-to-container).
-    - Create a file in the container at the mounted directory that is also available at the host!
-        * See file at '$alt_home/'
-" || echo "⚠  podman's attempt to run a bind-mounted container under the provisioned user's namespace has failed."
+' && ok || echo "⚠  Podman's attempt to run a container having a bind-mount, in rootless mode (under the provisioned user's namespace), has failed."
 
 exit $?
 #######

@@ -49,8 +49,8 @@ menu :
 	$(INFO) 'Install per-user provisioning and usage scripts for Podman rootless mode '
 	@echo "build        : Build the provision script"
 	@echo "install      : Build and install provision and podman-wrapper scripts"
-	@echo "add-user     : Add APP_TEST_USER (${APP_TEST_USER}) to group ${APP_GROUP_USERS}"
-	@echo "del-user     : Unprovision and delete APP_TEST_USER (${APP_TEST_USER})"
+	@echo "proxy-add    : Add APP_TEST_USER (${APP_TEST_USER}) to group ${APP_GROUP_USERS}"
+	@echo "proxy-del    : Unprovision APP_TEST_USER (${APP_TEST_USER}), deleting the local-proxy user, group, and all artifacts."
 	$(INFO) 'Meta '
 	@echo "env          : Print the Makefile environment"
 	@echo "fs           : File mode, MD to HTML, and such FS management"
@@ -83,8 +83,9 @@ build:
 install: build
 	sudo -E bash install.sh
 
-add-user:
+proxy-add:
 	sudo usermod -aG ${APP_GROUP_USERS} ${APP_TEST_USER}
 
-del-user teardown:
+proxy-del teardown:
 	sudo -E bash per-user/podman-unprovision-user.sh ${APP_TEST_USER}
+
