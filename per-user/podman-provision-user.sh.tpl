@@ -94,13 +94,13 @@ usermod -aG "$app_sudoers" $local_user
 ## Useful when the invoking user is not the target domain user, else redundant.
 groups "$domain_user" |grep "$app_sudoers" || {
     usermod -aG "$app_sudoers" "$domain_user" &&
-        echo "🚧  User '$domain_user' MUST LOGOUT/LOGIN to activate their membership in group '$app_sudoers'." >&2
+        echo "🚧  User '$domain_user' may need to LOGOUT/LOGIN to activate their membership in group '$app_sudoers'." >&2
 }
 
 ## Allow domain user access to home of its proxy (provisioned local user).
 groups "$domain_user" |grep "$local_group" || {
     usermod -aG "$local_group" "$domain_user" &&
-        echo "🚧  User '$domain_user' MUST LOGOUT/LOGIN to activate their membership in group: '$local_group'." >&2
+        echo "🚧  User '$domain_user' may need to LOGOUT/LOGIN to activate their membership in group: '$local_group'." >&2
 }
 
 ## Configure local proxy's home; podman's working directory for this user.
@@ -110,7 +110,7 @@ find $alt_home -type f -exec chmod 660 {} \+
 
 ## Verify that $local_user is provisioned
 restorecon -Rv $alt/home # Apply any resulting SELinux fcontext changes (again, just to be sure).
-ls -ZRhl $alt
+ls -Zhld $alt_home
 seVerify || {
     echo "⚠  ERR : FAILed @ SELinux : semanage fcontext" >&2
 
@@ -144,7 +144,7 @@ ok(){
 }
 ## Verify that this domain user can run podman as the otherwise-unprivileged local-proxy user via the explicitly-declared wrapper script.
 /usr/local/bin/podman run --rm --volume $alt_home:/mnt/home $img sh -c '
-    echo "🚀  Hello from the container : $(whoami)@$(hostname -f) !"
+    echo "🚀  Hello from container '$(hostname -f)' running as $(whoami) (from the container's perspective) !"
     umask 002
     ls -hl /mnt/home
     touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
