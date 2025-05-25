@@ -22,10 +22,13 @@ img=APP_OCI_TEST_IMAGE
 
 [[ -n "${SUDO_USER:-}" ]] || {
     echo "⚠  USAGE: sudo ${BASH_SOURCE##*/}" >&2
+    groups "$(id -un)" |grep "$app_sudoers" || {
+        echo "⚠  REQUIREs membership in GROUP: $app_sudoers" >&2
 
+        exit 2
+    }
     exit 1
 }
-logger "Script run by '$SUDO_USER' via sudo : '$BASH_SOURCE'"
 
 domain_user=$SUDO_USER
 ## Allow admins to select the user
@@ -41,6 +44,8 @@ id "$local_user" >/dev/null 2>&1 && grep -qe "^$local_user" /etc/passwd && {
 
     exit 11
 }
+
+logger "Script run by '$SUDO_USER' via sudo : '$BASH_SOURCE'"
 
 grep -qe "^$domain_user" /etc/passwd && {
     echo "⚠  This script creates a local account, '$app-$domain_user', for a *non-local* (AD domain) user." >&2
