@@ -91,15 +91,17 @@ groups "$local_user" |grep "$app_sudoers" ||
 usermod -aG "$app_sudoers" $local_user
 
 ## Allow domain user to self-provision.
-## Seems redundant; the invoking user must have sudo to run this script.
-## However, this allows for self provisioning subsequent to unprovisioning.
-groups "$domain_user" |grep "$app_sudoers" ||
-    usermod -aG "$app_sudoers" "$domain_user"
+## Useful when the invoking user is not the target domain user, else redundant.
+groups "$domain_user" |grep "$app_sudoers" || {
+    usermod -aG "$app_sudoers" "$domain_user" &&
+        echo "🚧  User '$domain_user' MUST LOGOUT/LOGIN to activate their membership in group '$app_sudoers'." >&2
+}
 
 ## Allow domain user access to home of its proxy (provisioned local user).
-groups "$domain_user" |grep "$local_group" ||
+groups "$domain_user" |grep "$local_group" || {
     usermod -aG "$local_group" "$domain_user" &&
-        echo "🚧  User '$domain_user' MUST LOGOUT/LOGIN to activate their membership in groups: '$sudoers' and '$local_group'." >&2
+        echo "🚧  User '$domain_user' MUST LOGOUT/LOGIN to activate their membership in group: '$local_group'." >&2
+}
 
 ## Configure local proxy's home; podman's working directory for this user.
 chown -R $local_user:$local_group $alt_home
@@ -147,7 +149,8 @@ ok(){
     ls -hl /mnt/home
     touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
     ls -hl /mnt/home
-' && ok || echo "⚠  Podman's attempt to run a container having a bind-mount, in rootless mode (under the provisioned user's namespace), has failed."
+' && ok || echo "⚠  Podman's attempt to run a container in rootless mode (under the local-proxy user's namespace), having a bind-mount, has failed."
 
 exit $?
 #######
+
