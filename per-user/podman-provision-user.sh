@@ -22,11 +22,12 @@ img=alpine
 
 [[ -n "${SUDO_USER:-}" ]] || {
     echo "⚠  USAGE: sudo ${BASH_SOURCE##*/}" >&2
+    echo "   REQUIREs membership in GROUP: $app_sudoers" >&2
 
     exit 1
 }
 groups "${SUDO_USER:-}" |grep "$app_sudoers" || {
-    echo "⚠  REQUIREs membership in GROUP: $app_sudoers" >&2
+    echo "⚠  This script REQUIREs membership in GROUP: $app_sudoers" >&2
 
     exit 2
 }
@@ -131,14 +132,21 @@ echo
 /usr/local/bin/podman run --rm --volume $alt_home:/mnt/home $img sh -c '
     echo "🚀  Hello from the container : $(whoami)@$(hostname -f) !"
     umask 002
-    ls -hl /mnt/home/test-*
+    ls -hl /mnt/home
     touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
-    ls -hl /mnt/home/test-*
-' && echo "⚡  You successfully ... 
+    ls -hl /mnt/home
+' && echo "⚡  Having ran podman in rootless mode, you successfully ... 
     - Pulled an OCI image
-    - Ran its bind-mounted container
-    - Create a file in the mounted directory, which is available at the host!
-        * See file at '$home/'
+    - Ran its bind-mounted container having a bind mount (host-to-container).
+    - Create a file in the container at the mounted directory that is also available at the host!
+        * See file at '$alt_home/'
 " || echo "⚠  podman's attempt to run a bind-mounted container under the provisioned user's namespace has failed."
 
-exit 0
+exit $?
+#######
+
+## After provisioning, try:
+home="$(getent passwd "podman-$(id -un)" |cut -d: -f6)"
+img=busybox
+podman run --rm --volume $home:/mnt/home $img sh -c 'touch /mnt/home/another-test-file;ls -hl /mnt/home'
+
