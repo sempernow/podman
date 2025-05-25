@@ -135,7 +135,7 @@ ok(){
     - Pulled an image from an OCI registry: '$img' .
     - Ran its container with a bind mount to your local-proxy user's home directory.
     - Created a file in the container, writing it to the mounted directory (available at the host).
-        * See the file at '$alt_home/'
+        * See the file at host, '$alt_home/', and note OWNER:GROUP of its 'root' author.
     "
     echo -e '🧪  Next, try ...
     home="$(getent passwd "podman-$(id -un)" |cut -d: -f6)"
@@ -144,7 +144,7 @@ ok(){
 }
 ## Verify that this domain user can run podman as the otherwise-unprivileged local-proxy user via the explicitly-declared wrapper script.
 /usr/local/bin/podman run --rm --volume $alt_home:/mnt/home $img sh -c '
-    echo "🚀  Hello from container '$(hostname -f)' running as $(whoami) (from the container's perspective) !"
+    echo "🚀  Hello from container $(hostname -f) running as $(whoami) (container context only) !"
     umask 002
     ls -hl /mnt/home
     touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
