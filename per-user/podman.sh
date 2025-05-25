@@ -8,7 +8,7 @@
 # to their namespaced Podman environment, 
 # and privileged with the required access.
 #
-# See /usr/local/bin/provision-podman-nologin.sh
+# See /usr/local/bin/podman-provision-user.sh
 #####################################################################
 set -euo pipefail
 
@@ -36,7 +36,7 @@ grep -qe "^$invoking_user:" /etc/passwd &&
 
 # Validate the invoking-user's proxy.
 id "$proxy_user" &>/dev/null || {
-    echo "⚠  ERR: Proxy user '$proxy_user' does NOT EXIST. Run the provisioning script first." >&2
+    echo "⚠  ERR: The local-proxy user '$proxy_user' does NOT EXIST. Run the provisioning script." >&2
 
     exit 33
 }
@@ -54,7 +54,7 @@ home="$(getent passwd "$proxy_user" |cut -d: -f6)"
     cd "$home" 2>/dev/null || {
         mkdir -p "/tmp/${invoking_user}"
         cd "/tmp/${invoking_user}" || {
-            echo '🚧  WARN: Failed to set working directory. Proceeding from /' >&2
+            echo '🚧  WARN: Failed to set working directory. Proceeding from "/"' >&2
             cd /
         }
     }
@@ -66,13 +66,13 @@ dbus_socket="$runtime_dir/bus"
 
 # Validate runtime dir exists (loginctl linger may be required).
 [[ ! -d "$runtime_dir" ]] && {
-    echo "⚠  ERR: Runtime directory '$runtime_dir' does not exist. Enable linger for $proxy_user." >&2
+    echo "⚠  ERR: Runtime directory '$runtime_dir' does not exist. Enable linger for '$proxy_user'." >&2
     echo -e "\nRun: loginctl enable-linger $proxy_user" >&2
 
     exit 55
 }
 
-# Log the meta
+# Log this event
 logger "Script '$BASH_SOURCE' was invoked by '$invoking_user' to run 'sudo -u $proxy_user ...' with args: $*"
 
 # Execute podman as the proxy user in an environment required of Podman's rootless mode.
