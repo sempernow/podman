@@ -22,12 +22,13 @@ img=alpine
 
 [[ -n "${SUDO_USER:-}" ]] || {
     echo "⚠  USAGE: sudo ${BASH_SOURCE##*/}" >&2
-    groups "$(id -un)" |grep "$app_sudoers" || {
-        echo "⚠  REQUIREs membership in GROUP: $app_sudoers" >&2
 
-        exit 2
-    }
     exit 1
+}
+groups "${SUDO_USER:-}" |grep "$app_sudoers" || {
+    echo "⚠  REQUIREs membership in GROUP: $app_sudoers" >&2
+
+    exit 2
 }
 
 domain_user=$SUDO_USER
@@ -124,6 +125,8 @@ grep -q $local_group /etc/subgid || {
     exit 78
 }
 
+echo "✅  Provision complete."
+echo
 ## Verify that this domain user can run podman as the local-proxy user via the wrapper.
 /usr/local/bin/podman run --rm --volume $alt_home:/mnt/home $img sh -c '
     echo "🚀  Hello from the container : $(whoami)@$(hostname -f) !"
@@ -131,7 +134,11 @@ grep -q $local_group /etc/subgid || {
     ls -hl /mnt/home/test-*
     touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
     ls -hl /mnt/home/test-*
-'
+' && echo "⚡  You successfully ... 
+    - Pulled an OCI image
+    - Ran its bind-mounted container
+    - Create a file in the mounted directory, which is available at the host!
+        * See file at '$home/'
+" || echo "⚠  podman's attempt to run a bind-mounted container under the provisioned user's namespace has failed."
 
-echo "✅  Provision complete."
 exit 0
