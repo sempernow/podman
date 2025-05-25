@@ -28,7 +28,7 @@ getent group $scope || groupadd -r $scope
 tee $sudoers <<EOH
 Defaults:%$scope secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
 Defaults:%$scope env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
-%$scope ALL=(ALL) NOPASSWD: $self_provision
+%$scope ALL=(ALL) NOPASSWD: $self_provision, /usr/bin/$app
 EOH
 chown root:root $sudoers
 chmod 640 $sudoers
@@ -45,4 +45,3 @@ Defaults:%$scope env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
 EOH
 chown root:root $sudoers
 chmod 640 $sudoers
-
