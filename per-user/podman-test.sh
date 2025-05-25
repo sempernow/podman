@@ -12,7 +12,7 @@ ok(){
     - Ran its container with a bind mount to your local-proxy user's home directory.
     - Created a file in the container, writing it to the mounted directory (available at the host).
     "
-    echo -e "\n🔍  Note file owner and group at *host*, which are both 'root' at *container* (above):"
+    echo "🔍  Note file owner and group at *host*, which are both 'root' at *container* (above):"
     echo "=== $(whoami)@$(hostname -f)"
     ls -hl $alt_home
     echo -e '\n🧪  Next, try it yourself ...
