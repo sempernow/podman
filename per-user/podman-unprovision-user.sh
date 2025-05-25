@@ -39,6 +39,8 @@ echo "domain_user : '$domain_user'"
 ## Disable linger (process)
 loginctl disable-linger "$local_user" 2>/dev/null # Ok if not exist
 
+sleep 1
+
 # Delete local user
 grep -qe "^$local_user" /etc/passwd &&
     userdel -r -Z "$local_user" 2>/dev/null ||
@@ -52,6 +54,10 @@ grep -qe "^$local_group" /etc/group &&
 # Remove domain user from app-provisioners group
 sudoers=${APP_GROUP_PROVISIONERS}
 gpasswd -d "$domain_user" $sudoers
+
+# Remove domain user from proxy group
+sudoers=${APP_GROUP_PROVISIONERS}
+gpasswd -d "$domain_user" ${app}-$local_user
 
 ## Delete all fcontext  rules
 #semanage fcontext --delete "$alt/home(/.*)?" 2>/dev/null # Ok if none exist.
@@ -78,7 +84,6 @@ ls -ZRahl $alt |grep "$local_user" &&
 # ## The subids should already be removed, but this is safety net
 # sed -i "/^$local_user:/d" /etc/subuid
 # sed -i "/^$local_group:/d" /etc/subgid
-sleep 1
 
 grep -qe "^$local_user" /etc/subuid &&
     echo "❌  ERR : subUID entries remain for deleted user '$local_user'" &&
@@ -92,3 +97,5 @@ loginctl user-status "$local_user" 2>/dev/null |command grep -q Linger &&
     echo "❌  ERR : Linger remains enabled for '$local_group'" &&
         exit 80 ||
             echo "✅  Teardown of '$local_user' and artifacts is complete."
+
+

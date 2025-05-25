@@ -34,7 +34,8 @@ export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 ## Application declarations
 
 export APP_NAME                := podman
-export APP_TEST_USER           := u2
+#export APP_TEST_USER           := u2
+export APP_TEST_USER           := u0
 export APP_GROUP_ADMINS        := ad-linux-sudoers
 export APP_GROUP_PROVISIONERS  := ${APP_NAME}-provisioners
 export APP_GROUP_LOCAL_PROXY   := ${APP_NAME}-local
@@ -48,12 +49,17 @@ export APP_OCI_TEST_IMAGE      := alpine
 ## Recipes : Meta
 menu :
 	$(INFO) 'Install per-user provisioning and usage scripts for Podman rootless mode '
-	@echo "install      : Build and install it"
+	@echo "build        : Build the provision script"
+	@echo "install      : Build and install provision and podman-wrapper scripts"
+	$(INFO) 'Meta '
+	@echo "env          : Print the Makefile environment"
+	@echo "fs           : File mode, MD to HTML, and such FS management"
 	@echo "commit       : Handle all the Git and FS management"
 
 env:
 	$(INFO) 'Environment'
 	@echo "PWD=${PRJ_ROOT}"
+	@env |grep APP_
 #	@env |grep K8S_
 #	@env |grep ADMIN_
 
@@ -76,6 +82,10 @@ build:
 	bash build.sh
 install: build
 	sudo -E bash install.sh
+
+test:
+	sudo usermod -aG ${APP_GROUP_PROVISIONERS} ${APP_TEST_USER}
+
 teardown:
 	sudo -E bash per-user/podman-unprovision-user.sh ${APP_TEST_USER}
 
