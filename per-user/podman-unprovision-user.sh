@@ -24,42 +24,36 @@
 
 [[ "$1" ]] && domain_user="$1" || domain_user="$SUDO_USER"
 
+sudoers=${APP_GROUP_USERS}
 app=${APP_NAME}
 alt=/work/$app
 alt_home=$alt/home/$domain_user
 local_user="$app-$domain_user"
 local_group="$local_user"
 
-echo "alt         : '$alt'"
-echo "alt_home    : '$alt_home'"
-echo "local user  : '$local_user'"
-echo "local_group : '$local_group'"
-echo "domain_user : '$domain_user'"
-
 ## Disable linger (process)
 loginctl disable-linger "$local_user" 2>/dev/null # Ok if not exist
 
 sleep 1
 
-# Delete local user
-grep -qe "^$local_user" /etc/passwd &&
+## Remove domain user from app's sudoers group
+## Comment out the next line if subsequent self provisioning is desired
+gpasswd -d "$domain_user" $sudoers 
+
+## Remove domain user from its local-proxy group
+gpasswd -d "$domain_user" ${app}-$local_user
+
+## Delete local-proxy user
+grep -qe "^$local_user" /etc/passwd && {
     userdel -r -Z "$local_user" 2>/dev/null ||
         userdel -Z "$local_user" 2>/dev/null
-
-# Delete local group
+}
+## Delete local-proxy group
 grep -qe "^$local_group" /etc/group &&
     groupmems --group "$local_group" --purge &&
         groupdel "$local_group"
 
-# Remove domain user from app-provisioners group
-sudoers=${APP_GROUP_PROVISIONERS}
-gpasswd -d "$domain_user" $sudoers
-
-# Remove domain user from proxy group
-sudoers=${APP_GROUP_PROVISIONERS}
-gpasswd -d "$domain_user" ${app}-$local_user
-
-## Delete all fcontext  rules
+## Delete all fcontext rules
 #semanage fcontext --delete "$alt/home(/.*)?" 2>/dev/null # Ok if none exist.
 #restorecon -Rv $alt/home
 
@@ -81,7 +75,8 @@ ls -ZRahl $alt |grep "$local_user" &&
     echo "❌  ERR : HOME dir remains for deleted user '$local_user'" && 
         exit 76
 
-# ## The subids should already be removed, but this is safety net
+## The subids should already be removed, but this is safety net.
+## - Prefer to rerun script until successful, so commented out.
 # sed -i "/^$local_user:/d" /etc/subuid
 # sed -i "/^$local_group:/d" /etc/subgid
 
@@ -97,5 +92,3 @@ loginctl user-status "$local_user" 2>/dev/null |command grep -q Linger &&
     echo "❌  ERR : Linger remains enabled for '$local_group'" &&
         exit 80 ||
             echo "✅  Teardown of '$local_user' and artifacts is complete."
-
-

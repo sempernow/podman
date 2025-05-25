@@ -16,7 +16,7 @@ dst=/usr/local/bin
 
 bash $src/${APP_PROVISION_SUDOERS}
 
-install $src/${APP_PROVISION_NOLOGIN} $dst/ &&
+install $src/${APP_PROVISION_USER} $dst/ &&
     install $src/${APP_NAME}.sh $dst/${APP_NAME} &&
         echo "✅  Installation complete." ||
             echo "❌  Something failed to install."

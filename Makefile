@@ -34,14 +34,12 @@ export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 ## Application declarations
 
 export APP_NAME                := podman
-#export APP_TEST_USER           := u2
-export APP_TEST_USER           := u0
-export APP_GROUP_ADMINS        := ad-linux-sudoers
-export APP_GROUP_PROVISIONERS  := ${APP_NAME}-provisioners
-export APP_GROUP_LOCAL_PROXY   := ${APP_NAME}-local
-export APP_PROVISION_NOLOGIN   := ${APP_NAME}-provision-nologin.sh
+export APP_PROVISION_USER      := ${APP_NAME}-provision-user.sh
 export APP_PROVISION_SUDOERS   := ${APP_NAME}-provision-sudoers.sh
-export APP_OCI_TEST_IMAGE      := alpine
+export APP_TEST_USER           ?= u0
+export APP_GROUP_ADMINS        ?= ad-linux-sudoers
+export APP_GROUP_USERS         ?= ${APP_NAME}-users
+export APP_OCI_TEST_IMAGE      ?= alpine
 
 ##############################################################################
 ## Recipes
@@ -51,6 +49,8 @@ menu :
 	$(INFO) 'Install per-user provisioning and usage scripts for Podman rootless mode '
 	@echo "build        : Build the provision script"
 	@echo "install      : Build and install provision and podman-wrapper scripts"
+	@echo "add-user     : Add APP_TEST_USER (${APP_TEST_USER}) to group ${APP_GROUP_USERS}"
+	@echo "del-user     : Unprovision and delete APP_TEST_USER (${APP_TEST_USER})"
 	$(INFO) 'Meta '
 	@echo "env          : Print the Makefile environment"
 	@echo "fs           : File mode, MD to HTML, and such FS management"
@@ -83,9 +83,8 @@ build:
 install: build
 	sudo -E bash install.sh
 
-test:
-	sudo usermod -aG ${APP_GROUP_PROVISIONERS} ${APP_TEST_USER}
+add-user:
+	sudo usermod -aG ${APP_GROUP_USERS} ${APP_TEST_USER}
 
-teardown:
+del-user teardown:
 	sudo -E bash per-user/podman-unprovision-user.sh ${APP_TEST_USER}
-

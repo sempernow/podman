@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
 ####################################################################
 # Provision a stable rootless Podman environment for an AD user
-# by creating a local service account (--shell /sbin/nologin)
-# that allows the otherwise unprivileged namesake (AD user)
-# to run as, with commands limited by an apropos sudoers file. 
-#
+# by adding a local user ($app-$USER) having no login shell,
+# to which the otherwise-unprivileged namesake will "sudo -u". 
+# That local proxy's allowed commands are thereby limited 
+# to those declared at an appropriate sudoers drop-in. 
+# 
 # RedHat has not yet documented a stable, scalable,
-# fully-functional rootless Podman solution 
-# for remote (AD) users. This scheme is a workaround.
+# fully-functional rootless Podman solution for non-local (AD) 
+# users seeking a containerized-delvelopment environmnet. 
+# This local-proxy scheme is a workaround.
 #
 # ARGs: [DOMAIN_USER] (Default is SUDO_USER)
 #
 # - Idempotent
 ####################################################################
-admins_group=APP_GROUP_ADMINS
-app=APP_NAME
-sudoers_provisioners=APP_GROUP_PROVISIONERS
-sudoers_local_proxy=APP_GROUP_LOCAL_PROXY
-img=APP_OCI_TEST_IMAGE
+app=podman
+admins=ad-linux-sudoers
+app_sudoers=podman-users
+img=alpine
 
 [[ -n "${SUDO_USER:-}" ]] || {
     echo "⚠  USAGE: sudo ${BASH_SOURCE##*/}" >&2
@@ -27,8 +28,8 @@ img=APP_OCI_TEST_IMAGE
 logger "Script run by '$SUDO_USER' via sudo : '$BASH_SOURCE'"
 
 domain_user=$SUDO_USER
-## Allow domain admins to select the AD user
-[[ $1 ]] && groups $SUDO_USER |grep "$admins_group" && domain_user=$1
+## Allow admins to select the user
+[[ $1 ]] && groups $SUDO_USER |grep "$admins" && domain_user=$1
 
 alt=/work/$app
 alt_home=$alt/home/$domain_user
@@ -78,15 +79,18 @@ id "$local_user" >/dev/null 2>&1 || {
 
     exit 33
 }
-## Allow local proxy to run podman wrapper script
-usermod -aG "$sudoers_local_proxy" $local_user
+## Allow local-proxy user to run podman wrapper script
+groups "$local_user" |grep "$app_sudoers" ||
+usermod -aG "$app_sudoers" $local_user
 
 ## Allow domain user to self-provision.
-groups "$domain_user" |grep $sudoers_provisioners ||
-    usermod -aG "$sudoers_provisioners" "$domain_user"
+## Seems redundant; the invoking user must have sudo to run this script.
+## However, this allows for self provisioning subsequent to unprovisioning.
+groups "$domain_user" |grep "$app_sudoers" ||
+    usermod -aG "$app_sudoers" "$domain_user"
 
-## Allow domain user access to home of its provisioned local user.
-groups "$domain_user" |grep $local_group ||
+## Allow domain user access to home of its proxy (provisioned local user).
+groups "$domain_user" |grep "$local_group" ||
     usermod -aG "$local_group" "$domain_user" &&
         echo "🚧  User '$domain_user' MUST LOGOUT/LOGIN to activate their membership in groups: '$sudoers' and '$local_group'." >&2
 
