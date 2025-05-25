@@ -82,3 +82,11 @@ exec sudo -u "$proxy_user" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=$dbus_socket" \
     "$bin" "$@"
 
+exit $?
+#######
+
+## After provisioning, try:
+home="$(getent passwd "podman-$(id -un)" |cut -d: -f6)"
+img=busybox
+podman run --rm --volume $home:/mnt/home $img sh -c 'touch /mnt/home/foo;ls -hl /mnt/home'
+
