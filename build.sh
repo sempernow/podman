@@ -12,9 +12,9 @@ tmp=tmp
 header(){
 	cat <<-EOH
 	#!/usr/bin/env bash
-	#####################################################
-	# This script is a TEMPLATE ARTIFACT : DO NOT MODIFY
-	#####################################################
+	######################################################################
+	# DO NOT MODIFY : ARTIFACT of '$1.tpl'
+	######################################################################
 	EOH
 }
 tpl2sh(){
@@ -30,7 +30,7 @@ tpl2sh(){
         |sed '/^[[:space:]]*$/d' \
         |tee $tmp
 
-    header |cat - $tmp |tee $src/$1
+    header $1 |cat - $tmp |tee $src/$1
     rm $tmp
 }
 

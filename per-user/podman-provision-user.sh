@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-#####################################################
-# This script is a TEMPLATE ARTIFACT : DO NOT MODIFY
-#####################################################
+######################################################################
+# DO NOT MODIFY : ARTIFACT of 'podman-provision-user.sh.tpl'
+######################################################################
 app=podman
 admins=ad-linux-sudoers
 app_sudoers=ad-linux-users
