@@ -43,7 +43,7 @@ export APP_OCI_TEST_IMAGE      ?= alpine
 
 export SYS_GROUP_ADMINS        ?= ad-linux-sudoers
 export SYS_GROUP_DOMAIN_USERS  ?= ad-linux-users
-export SYS_GROUP_PROXY_USERS   ?= local-proxy
+export SYS_GROUP_PROXY_USERS   ?= proxy-users
 
 ##############################################################################
 ## Recipes

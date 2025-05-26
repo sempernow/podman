@@ -25,33 +25,30 @@
 [[ "$1" ]] && domain_user="$1" || domain_user="$SUDO_USER"
 
 #sudoers=${SYS_GROUP_DOMAIN_USERS}
-app=${APP_NAME}
+app=$APP_NAME
 alt=/work/$app
 alt_home=$alt/home/$domain_user
-local_user="$app-$domain_user"
-local_group="$local_user"
+user_local_proxy="$app-$domain_user"
+group_local_proxy="$user_local_proxy"
+group_proxy_users=$SYS_GROUP_PROXY_USERS
 
 ## Disable linger (process)
-loginctl disable-linger "$local_user" 2>/dev/null # Ok if not exist
+loginctl disable-linger "$user_local_proxy" 2>/dev/null # Ok if not exist
 
 sleep 1
 
-## Remove domain user from app's sudoers group
-## Comment out the next line if subsequent self provisioning is desired
-#gpasswd -d "$domain_user" $sudoers 
-
 ## Remove domain user from its local-proxy group
-gpasswd -d "$domain_user" ${app}-$local_user 2>/dev/null
+gpasswd -d "$domain_user" $user_local_proxy 2>/dev/null
 
 ## Delete local-proxy user
-grep -qe "^$local_user" /etc/passwd && {
-    userdel -r -Z "$local_user" 2>/dev/null ||
-        userdel -Z "$local_user" 2>/dev/null
+grep -qe "^$user_local_proxy" /etc/passwd && {
+    userdel -r -Z "$user_local_proxy" 2>/dev/null ||
+        userdel -Z "$user_local_proxy" 2>/dev/null
 }
 ## Delete local-proxy group
-grep -qe "^$local_group" /etc/group &&
-    groupmems --group "$local_group" --purge &&
-        groupdel "$local_group"
+grep -qe "^$group_local_proxy" /etc/group &&
+    groupmems --group "$group_local_proxy" --purge &&
+        groupdel "$group_local_proxy"
 
 ## Delete all fcontext rules
 #semanage fcontext --delete "$alt/home(/.*)?" 2>/dev/null # Ok if none exist.
@@ -63,32 +60,32 @@ rm -rf "$alt_home" # Should already be deleted by userdel.
 rm -rf "$alt/scratch/$domain_user"
 
 ## Verify
-grep -qe "^$local_user" /etc/passwd &&
-    echo "❌  ERR : User '$local_user' remains" &&
+grep -qe "^$user_local_proxy" /etc/passwd &&
+    echo "❌  ERR : User '$user_local_proxy' remains" &&
         exit 71
 
-grep -qe "^$local_group" /etc/group &&
-    echo "❌  ERR : Group '$local_group' remains'" &&
+grep -qe "^$group_local_proxy" /etc/group &&
+    echo "❌  ERR : Group '$group_local_proxy' remains'" &&
         exit 74
 
-ls -ZRahl $alt |grep "$local_user" &&
-    echo "❌  ERR : HOME dir remains for deleted user '$local_user'" && 
+ls -d $alt_home >/dev/null 2>&1 &&
+    echo "❌  ERR : HOME dir remains for deleted local-proxy user '$user_local_proxy'" && 
         exit 76
 
 ## The subids should already be removed, but this is safety net.
 ## - Prefer to rerun script until successful, so commented out.
-# sed -i "/^$local_user:/d" /etc/subuid
-# sed -i "/^$local_group:/d" /etc/subgid
+# sed -i "/^$user_local_proxy:/d" /etc/subuid
+# sed -i "/^$group_local_proxy:/d" /etc/subgid
 
-grep -qe "^$local_user" /etc/subuid &&
-    echo "❌  ERR : subUID entries remain for deleted user '$local_user'" &&
+grep -qe "^$user_local_proxy" /etc/subuid &&
+    echo "❌  ERR : subUID entries remain for deleted user '$user_local_proxy'" &&
         exit 78
 
-grep -qe "^$local_group" /etc/subgid &&
-    echo "❌  ERR : subGID entries remain for deleted group '$local_group'" &&
+grep -qe "^$group_local_proxy" /etc/subgid &&
+    echo "❌  ERR : subGID entries remain for deleted group '$group_local_proxy'" &&
         exit 79
 
-loginctl user-status "$local_user" 2>/dev/null |command grep -q Linger &&
-    echo "❌  ERR : Linger remains enabled for '$local_group'" &&
+loginctl user-status "$user_local_proxy" 2>/dev/null |command grep -q Linger &&
+    echo "❌  ERR : Linger remains enabled for '$group_local_proxy'" &&
         exit 80 ||
-            echo "✅  Teardown of '$local_user' and artifacts is complete."
+            echo "✅  Teardown of '$user_local_proxy' and artifacts is complete."
