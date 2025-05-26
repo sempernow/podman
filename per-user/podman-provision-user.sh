@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 ######################################################################
-# DO NOT MODIFY : ARTIFACT of 'podman-provision-user.sh.tpl' @ 4e5c98d
+# DO NOT MODIFY : ARTIFACT of 'podman-provision-user.sh.tpl' @ bef3322
 ######################################################################
 app=podman
 admins=ad-linux-sudoers
-app_sudoers=ad-linux-users
+group_domain=ad-linux-users
+group_local=local-proxy
 img=alpine
 [[ -n "${SUDO_USER:-}" ]] || {
     echo "⚠  USAGE: sudo ${BASH_SOURCE##*/}" >&2
-    echo "   REQUIREs membership in GROUP: '$app_sudoers'" >&2
+    echo "   REQUIREs membership in GROUP: '$group_domain'" >&2
     exit 1
 }
-groups "${SUDO_USER:-}" |grep "$app_sudoers" || {
-    echo "⚠  This script REQUIREs membership in GROUP: '$app_sudoers'" >&2
+groups "${SUDO_USER:-}" |grep "$group_domain" || {
+    echo "⚠  This script REQUIREs membership in GROUP: '$group_domain'" >&2
     exit 2
 }
 domain_user=$SUDO_USER
@@ -51,9 +52,11 @@ id "$local_user" >/dev/null 2>&1 || {
     echo "⚠  ERR : FAILed @ useradd : '$local_user' does NOT EXIST." >&2
     exit 33
 }
-groups "$domain_user" |grep "$app_sudoers" || {
-    usermod -aG "$app_sudoers" "$domain_user" &&
-        echo "🚧  User '$domain_user' may need to LOGOUT/LOGIN to activate their membership in group '$app_sudoers'." >&2
+groups "$local_user" |grep "$group_local" ||
+usermod -aG "$group_local" $local_user
+groups "$domain_user" |grep "$group_domain" || {
+    usermod -aG "$group_domain" "$domain_user" &&
+        echo "🚧  User '$domain_user' may need to LOGOUT/LOGIN to activate their membership in group '$group_domain'." >&2
 }
 groups "$domain_user" |grep "$local_group" || {
     usermod -aG "$local_group" "$domain_user" &&
@@ -77,6 +80,6 @@ grep -q $local_group /etc/subgid || {
     exit 78
 }
 echo -e "\n✅  Provision complete.\n"
-echo -e "📦  Verify by running a container using podman via its transparent wrapper, which handles your local-proxy configuration:"
+echo -e "📦  Verify by running a container using the transparent podman wrapper, /usr/local/bin/podman :"
 su "$domain_user" -c "/usr/local/bin/podman-test.sh $alt_home $img"
 exit $? 

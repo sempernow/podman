@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ######################################################################
-# DO NOT MODIFY : ARTIFACT of 'podman.sh.tpl' @ 4e5c98d
+# DO NOT MODIFY : ARTIFACT of 'podman.sh.tpl' @ bef3322
 ######################################################################
 set -euo pipefail
 bin=/usr/bin/podman

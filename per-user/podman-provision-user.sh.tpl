@@ -19,17 +19,18 @@
 ####################################################################
 app=APP_NAME
 admins=SYS_GROUP_ADMINS
-app_sudoers=SYS_GROUP_DOMAIN_USERS
+group_domain=SYS_GROUP_DOMAIN_USERS
+group_local=SYS_GROUP_LOCAL_PROXY
 img=APP_OCI_TEST_IMAGE
 
 [[ -n "${SUDO_USER:-}" ]] || {
     echo "⚠  USAGE: sudo ${BASH_SOURCE##*/}" >&2
-    echo "   REQUIREs membership in GROUP: '$app_sudoers'" >&2
+    echo "   REQUIREs membership in GROUP: '$group_domain'" >&2
 
     exit 1
 }
-groups "${SUDO_USER:-}" |grep "$app_sudoers" || {
-    echo "⚠  This script REQUIREs membership in GROUP: '$app_sudoers'" >&2
+groups "${SUDO_USER:-}" |grep "$group_domain" || {
+    echo "⚠  This script REQUIREs membership in GROUP: '$group_domain'" >&2
 
     exit 2
 }
@@ -88,15 +89,16 @@ id "$local_user" >/dev/null 2>&1 || {
 
     exit 33
 }
-## Allow local-proxy user to run podman wrapper script
-# groups "$local_user" |grep "$app_sudoers" ||
-# usermod -aG "$app_sudoers" $local_user
+## Allow domain user to runas group having local-proxy user as member
+## This allows for scalable sudoers file; declare by group rather than users. 
+groups "$local_user" |grep "$group_local" ||
+usermod -aG "$group_local" $local_user
 
 ## Allow domain user to self-provision.
 ## Useful when the invoking user is not the target domain user, else redundant.
-groups "$domain_user" |grep "$app_sudoers" || {
-    usermod -aG "$app_sudoers" "$domain_user" &&
-        echo "🚧  User '$domain_user' may need to LOGOUT/LOGIN to activate their membership in group '$app_sudoers'." >&2
+groups "$domain_user" |grep "$group_domain" || {
+    usermod -aG "$group_domain" "$domain_user" &&
+        echo "🚧  User '$domain_user' may need to LOGOUT/LOGIN to activate their membership in group '$group_domain'." >&2
 }
 
 ## Allow domain user access to home of its local proxy.

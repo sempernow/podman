@@ -19,7 +19,7 @@ set -euo pipefail
 ## Allow domain-users group members to self provision 
 ## a local-proxy user for Podman's rootless mode:
 ##  sudo $self_provision_script
-## Allow domain-users group members to runas their local-proxy user 
+## Allow domain-users group members to runas their local-proxy user, but not as root.
 ## to execute the podman binary in a declared environment:
 ##  sudo -u $app-$USER <env_keep> /usr/bin/$app ...
 app=${APP_NAME}
@@ -34,7 +34,7 @@ tee $sudoers <<EOH
 Defaults:%$domain secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
 %$domain ALL=(ALL) $self_provision_script
 Defaults:$domain env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
-%$domain ALL=(ALL) NOPASSWD: /usr/bin/$app
+%$domain ALL=(%$proxy) NOPASSWD: /usr/bin/$app
 EOH
 
 chown root:root $sudoers
