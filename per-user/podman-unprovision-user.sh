@@ -12,7 +12,7 @@
 # - Idempotent
 #
 # User/group deletion targets are assured *local* and of name "$app-*".
-# That target local (AD proxy) user/group is intentionally *not* verified 
+# The target local (AD proxy) user/group is intentionally *not* verified 
 # to allow for multiple runs on cleanup of any cruft from edge cases.
 #####################################################################################
 
@@ -24,7 +24,7 @@
 
 [[ "$1" ]] && domain_user="$1" || domain_user="$SUDO_USER"
 
-sudoers=${APP_GROUP_USERS}
+#sudoers=${SYS_GROUP_DOMAIN_USERS}
 app=${APP_NAME}
 alt=/work/$app
 alt_home=$alt/home/$domain_user
@@ -38,10 +38,10 @@ sleep 1
 
 ## Remove domain user from app's sudoers group
 ## Comment out the next line if subsequent self provisioning is desired
-gpasswd -d "$domain_user" $sudoers 
+#gpasswd -d "$domain_user" $sudoers 
 
 ## Remove domain user from its local-proxy group
-gpasswd -d "$domain_user" ${app}-$local_user
+gpasswd -d "$domain_user" ${app}-$local_user 2>/dev/null
 
 ## Delete local-proxy user
 grep -qe "^$local_user" /etc/passwd && {

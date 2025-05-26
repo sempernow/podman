@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 ######################################################################
-# This script installs a group and its scoped sudoers drop-in
+# This script installs an application-scoped sudoers drop-in
 # for per-user provisioning and use of Podman in rootless mode: 
 # 
 # - Allows (AD) users to self provision a local (proxy) user.
-# - Limits that proxy user to run only the podman binary.
+# - Limits runas command of proxy user to podman binary only.
 #
 # - Idempotent
 ######################################################################
@@ -16,22 +16,25 @@ set -euo pipefail
     exit 11
 }
 
-## Allow domain (AD) user to self provisions:
-##  sudo $self_provision
-## Limit local-proxy user commands to the podman binary in its declared environment:
-##  sudo -u $app-$USER -- <env_keep> $app ...
-
+## Allow domain-users group members to self provision 
+## a local-proxy user for Podman's rootless mode:
+##  sudo $self_provision_script
+## Allow domain-users group members to runas their local-proxy user 
+## to execute the podman binary in a declared environment:
+##  sudo -u $app-$USER <env_keep> /usr/bin/$app ...
 app=${APP_NAME}
-scope=${APP_GROUP_USERS}
-self_provision=/usr/local/bin/${APP_PROVISION_USER}
-sudoers=/etc/sudoers.d/$scope
+sudoers=/etc/sudoers.d/$app
+self_provision_script=/usr/local/bin/${APP_PROVISION_USER}
+domain=${SYS_GROUP_DOMAIN_USERS}
+proxy=${SYS_GROUP_LOCAL_PROXY}
 
-getent group $scope || groupadd -r $scope
+getent group $proxy || groupadd -r $proxy
 
 tee $sudoers <<EOH
-Defaults:%$scope secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
-Defaults:%$scope env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
-%$scope ALL=(ALL) NOPASSWD: $self_provision, /usr/bin/$app
+Defaults:%$domain secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
+%$domain ALL=(:$domain) $self_provision_script
+Defaults:$domain env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
+%$domain ALL=(:$proxy) NOPASSWD: /usr/bin/$app
 EOH
 
 chown root:root $sudoers

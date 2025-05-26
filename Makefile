@@ -37,9 +37,12 @@ export APP_NAME                := podman
 export APP_PROVISION_USER      := ${APP_NAME}-provision-user.sh
 export APP_PROVISION_SUDOERS   := ${APP_NAME}-provision-sudoers.sh
 export APP_TEST_USER           ?= u0
-export APP_GROUP_ADMINS        ?= ad-linux-sudoers
-export APP_GROUP_USERS         ?= ${APP_NAME}-users
+
 export APP_OCI_TEST_IMAGE      ?= alpine
+
+export SYS_GROUP_ADMINS        ?= ad-linux-sudoers
+export SYS_GROUP_DOMAIN_USERS  ?= ad-linux-users
+export SYS_GROUP_LOCAL_PROXY   ?= local-proxy
 
 ##############################################################################
 ## Recipes
@@ -49,7 +52,7 @@ menu :
 	$(INFO) 'Install per-user provisioning and usage scripts for Podman rootless mode '
 	@echo "build        : Build the provision script"
 	@echo "install      : Build and install provision and podman-wrapper scripts"
-	@echo "proxy-add    : Add APP_TEST_USER (${APP_TEST_USER}) to group ${APP_GROUP_USERS}"
+	@echo "proxy-add    : Add APP_TEST_USER (${APP_TEST_USER}) to group ${SYS_GROUP_DOMAIN_USERS}"
 	@echo "proxy-del    : Unprovision APP_TEST_USER (${APP_TEST_USER}), deleting the local-proxy user, group, and all artifacts."
 	$(INFO) 'Meta '
 	@echo "env          : Print the Makefile environment"
@@ -60,6 +63,7 @@ env:
 	$(INFO) 'Environment'
 	@echo "PWD=${PRJ_ROOT}"
 	@env |grep APP_
+	@env |grep SYS_
 #	@env |grep K8S_
 #	@env |grep ADMIN_
 
@@ -77,14 +81,16 @@ commit push : html tree mode
 	gc && git push && gl && gs
 
 ## Recipes : App
-
+.PHONY: build install
 build:
-	bash build.sh
+	bash build.sh tpl2sh ${APP_PROVISION_USER}
+	bash build.sh tpl2sh podman.sh
+
 install: build
 	sudo -E bash install.sh
 
 proxy-add:
-	sudo usermod -aG ${APP_GROUP_USERS} ${APP_TEST_USER}
+	sudo usermod -aG ${SYS_GROUP_DOMAIN_USERS} ${APP_TEST_USER}
 
 proxy-del teardown:
 	sudo -E bash per-user/podman-unprovision-user.sh ${APP_TEST_USER}

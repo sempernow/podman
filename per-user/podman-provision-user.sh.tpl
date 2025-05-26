@@ -1,33 +1,35 @@
 #!/usr/bin/env bash
 ####################################################################
 # Provision a stable rootless Podman environment for an AD user
-# by adding a local user ($app-$USER) having no login shell,
-# to which the otherwise-unprivileged namesake will "sudo -u". 
-# That local proxy's allowed commands are thereby limited 
-# to those declared at an appropriate sudoers drop-in. 
+# by adding a local-proxy user ($app-$USER), having nologin shell,
+# for the otherwise-unprivileged namesake to runas (sudo -u). 
+# 
+# The local proxy is secured by limiting its allowed commands
+# to those declared in an appropriate sudoers drop-in. 
+# That is, sudo is utilized thereby to limit, not to privilege.
 # 
 # RedHat has not yet documented a stable, scalable,
 # fully-functional rootless Podman solution for non-local (AD) 
 # users seeking a containerized-delvelopment environmnet. 
 # This local-proxy scheme is a workaround.
 #
-# ARGs: [DOMAIN_USER] (Default is SUDO_USER)
+# ARGs: [DOMAIN_USER] (Default is SUDO_USER) 
 #
 # - Idempotent
 ####################################################################
 app=APP_NAME
-admins=APP_GROUP_ADMINS
-app_sudoers=APP_GROUP_USERS
+admins=SYS_GROUP_ADMINS
+app_sudoers=SYS_GROUP_DOMAIN_USERS
 img=APP_OCI_TEST_IMAGE
 
 [[ -n "${SUDO_USER:-}" ]] || {
     echo "⚠  USAGE: sudo ${BASH_SOURCE##*/}" >&2
-    echo "   REQUIREs membership in GROUP: $app_sudoers" >&2
+    echo "   REQUIREs membership in GROUP: '$app_sudoers'" >&2
 
     exit 1
 }
 groups "${SUDO_USER:-}" |grep "$app_sudoers" || {
-    echo "⚠  This script REQUIREs membership in GROUP: $app_sudoers" >&2
+    echo "⚠  This script REQUIREs membership in GROUP: '$app_sudoers'" >&2
 
     exit 2
 }
@@ -50,9 +52,9 @@ id "$local_user" >/dev/null 2>&1 && grep -qe "^$local_user" /etc/passwd && {
 logger "Script run by '$SUDO_USER' via sudo : '$BASH_SOURCE'"
 
 grep -qe "^$domain_user" /etc/passwd && {
-    echo "⚠  This script creates a local account, '$app-$domain_user', for a *non-local* (AD domain) user." >&2
+    echo "⚠  This script creates a local-proxy account, '$app-$domain_user', for an external (AD) user." >&2
     echo "    However, this user ($domain_user) is *local*." >&2
-    echo "    Local users are advised to run (rootless) Podman from their existing local account." >&2
+    echo "    Local users are advised to run $app from their existing local account." >&2
 
     exit 22
 }
@@ -87,8 +89,8 @@ id "$local_user" >/dev/null 2>&1 || {
     exit 33
 }
 ## Allow local-proxy user to run podman wrapper script
-groups "$local_user" |grep "$app_sudoers" ||
-usermod -aG "$app_sudoers" $local_user
+# groups "$local_user" |grep "$app_sudoers" ||
+# usermod -aG "$app_sudoers" $local_user
 
 ## Allow domain user to self-provision.
 ## Useful when the invoking user is not the target domain user, else redundant.
@@ -97,18 +99,18 @@ groups "$domain_user" |grep "$app_sudoers" || {
         echo "🚧  User '$domain_user' may need to LOGOUT/LOGIN to activate their membership in group '$app_sudoers'." >&2
 }
 
-## Allow domain user access to home of its proxy (provisioned local user).
+## Allow domain user access to home of its local proxy.
 groups "$domain_user" |grep "$local_group" || {
     usermod -aG "$local_group" "$domain_user" &&
         echo "🚧  User '$domain_user' may need to LOGOUT/LOGIN to activate their membership in group: '$local_group'." >&2
 }
 
-## Configure local proxy's home; podman's working directory for this user.
+## Configure local proxy's home (podman's working directory) for R/W access by this domain user.
 chown -R $local_user:$local_group $alt_home
 find $alt_home -type d -exec chmod 775 {} \+
 find $alt_home -type f -exec chmod 660 {} \+
 
-## Verify that $local_user is provisioned
+## Fix and verify SELinux fcontext of the local-proxy's home
 restorecon -Rv $alt/home # Apply any resulting SELinux fcontext changes (again, just to be sure).
 ls -Zhld $alt_home
 seVerify || {
@@ -117,21 +119,23 @@ seVerify || {
     exit 66
 }
 
+## Verify that namespaces (subids) are provisioned for the local proxy
+
 grep -q $local_user /etc/subuid || {
-    echo "⚠  ERR : FAILed to add subUID range for local user '$local_user'" >&2
+    echo "⚠  ERR : FAILed to add subUID range for local-proxy user '$local_user'" >&2
     
     exit 77
 }
 grep -q $local_group /etc/subgid || {
-    echo "⚠  ERR : FAILed to add subGID range for local group '$local_group'" >&2
+    echo "⚠  ERR : FAILed to add subGID range for local-proxy group '$local_group'" >&2
 
     exit 78
 }
 
 echo -e "\n✅  Provision complete.\n"
 
-## Verify that this domain user can run podman as the otherwise-unprivileged local-proxy user via the explicitly-declared wrapper script.
-echo -e "📦  Verify by running a container as yourself (domain user):"
+## Verify that the domain user can sudo runas the local-proxy user to execute podman in rootless mode.
+echo -e "📦  Verify by running a container using podman via its transparent wrapper, which handles your local-proxy configuration:"
 su "$domain_user" -c "/usr/local/bin/podman-test.sh $alt_home $img"
 
 exit $? 

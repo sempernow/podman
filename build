@@ -29,7 +29,6 @@ tpl2sh(){
         |sed -E '/^[[:space:]]*#/d; s/[[:space:]]+#.*$//' \
         |sed '/^[[:space:]]*$/d' \
         |tee $tmp
-
     header |cat - $tmp |tee $src/$1
     rm $tmp
 }
@@ -38,3 +37,9 @@ tpl2sh(){
 
 exit $?
 #######
+        |sed -e 's/[[:space:]]*#[[:space:]]\+.*$//' \
+        |sed -e '/^#[[:space:]]\+/d' \
+        |sed -e '/^[[:space:]]*$/d' \
+        |sed -e '/^ #/d' >$tmp
+        |sed -e 's/[[:space:]]*#[ ]+.*$//' -e '/^#/d' -e '/^[[:space:]]*$/d' >$tmp
+        |sed -e 's/[[:space:]]*#[[:space:]]\+.*$//' -e '/^#[[:space:]]\+/d' -e '/^[[:space:]]*$/d' >$tmp
