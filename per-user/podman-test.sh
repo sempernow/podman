@@ -12,19 +12,19 @@ ok(){
     - Ran its container with a bind mount to your local-proxy user's home directory.
     - Created a file in the container, writing it to the mounted directory (available at the host).
     "
-    echo "🔍  Note file owner and group at *host*, which are both 'root' at *container* (above):"
+    echo "🔍  Note file owner and group at *host*, though both are 'root' at *container* (above):"
     echo "=== $(whoami)@$(hostname -f)"
     ls -hl $alt_home
-    echo -e '\n🧪  Next, try it yourself ...
+    echo -e '\n🧪  Next, try it out yourself ...
 home="$(getent passwd "podman-$(id -un)" |cut -d: -f6)"
 img='"$img"'
 podman run --rm --volume $home:/mnt/home $img sh -c '"'touch /mnt/home/another-test-file;ls -hl /mnt/home'"'
 ls -hl $home
     '
 }
-## Verify that this domain user can run podman as the otherwise-unprivileged local-proxy user via the explicitly-declared wrapper script.
+## Verify this domain user is provisioned with a local proxy configured for Podman's rootless mode. 
 /usr/local/bin/podman run --rm --volume $alt_home:/mnt/home $img sh -c '
-    echo "🚀  Hello from container $(hostname -f) running as $(whoami) (container context only) !"
+    echo "🚀  Hello from container $(hostname -f) running as $(whoami) (container context) !"
     umask 002
     touch /mnt/home/test-write-access-$(date -u '+%Y-%m-%dT%H.%M.%SZ')
     echo "=== $(whoami)@$(hostname -f)"
