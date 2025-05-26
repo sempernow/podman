@@ -81,7 +81,6 @@ commit push : html tree mode
 	gc && git push && gl && gs
 
 ## Recipes : App
-.PHONY: build install
 build:
 	bash build.sh tpl2sh ${APP_PROVISION_USER}
 	bash build.sh tpl2sh podman.sh
