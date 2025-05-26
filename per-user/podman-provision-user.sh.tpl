@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-####################################################################
-# Provision a stable rootless Podman environment for an AD user
+###############################################################################
+# Provision a stable rootless Podman environment for a domain (AD) user
 # by adding a local-proxy user ($app-$USER), having nologin shell,
 # for the otherwise-unprivileged namesake to runas (sudo -u). 
 # 
-# The local proxy is secured by limiting its allowed commands
-# to those declared in an appropriate sudoers drop-in. 
-# That is, sudo is utilized thereby to limit, not to privilege.
+# This allows for further securing the local proxy by limiting the commands 
+# allowed of its invoking (AD) sudoer to those declared in a sudoers drop-in. 
+# That is, sudo is utilized here to limit, not to privilege.
 # 
 # RedHat has not yet documented a stable, scalable,
 # fully-functional rootless Podman solution for non-local (AD) 
@@ -16,7 +16,7 @@
 # ARGs: [DOMAIN_USER] (Default is SUDO_USER) 
 #
 # - Idempotent
-####################################################################
+###############################################################################
 app=APP_NAME
 admins=SYS_GROUP_ADMINS
 group_domain_users=SYS_GROUP_DOMAIN_USERS
