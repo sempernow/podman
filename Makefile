@@ -53,6 +53,7 @@ menu :
 	$(INFO) 'Install per-user provisioning and usage scripts for Podman rootless mode '
 	@echo "build        : Build the provision script"
 	@echo "install      : Build and install provision and podman-wrapper scripts"
+	@echo "proxy-list   : List all local-proxy users and groups"
 	@echo "proxy-add    : Add APP_TEST_USER (${APP_TEST_USER}) to group ${SYS_GROUP_DOMAIN_USERS}"
 	@echo "proxy-del    : Unprovision APP_TEST_USER (${APP_TEST_USER}), deleting the local-proxy user, group, and all artifacts."
 	$(INFO) 'Meta '
@@ -89,6 +90,11 @@ build:
 install: build
 	sudo -E bash install.sh
 
+proxy-list:
+	$(INFO) "Local-proxy Groups"
+	@grep podman /etc/group  || echo None
+	$(INFO) "Local-proxy Users"
+	@grep podman /etc/passwd || echo None
 proxy-add:
 	sudo usermod -aG ${SYS_GROUP_DOMAIN_USERS} ${APP_TEST_USER}
 
