@@ -1,4 +1,0 @@
-Defaults:%podman-sudoers secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
-Defaults:%podman-sudoers env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
-%podman-sudoers ALL=(ALL) NOPASSWD: /usr/local/bin/podman-provision-nologin.sh, /usr/bin/env, /usr/bin/podman, /usr/local/bin/podman
-%podman-sudoers ALL=(podman-*) NOPASSWD: /usr/bin/env, /usr/bin/podman
