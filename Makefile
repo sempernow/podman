@@ -79,7 +79,7 @@ tree :
 	tree -d |tee tree-d
 html :
 	find . -type f ! -path './.git/*' -name '*.md' -exec md2html.exe "{}" \;
-commit push : html tree mode
+commit push : html mode
 	gc && git push && gl && gs
 
 ## Recipes : App
