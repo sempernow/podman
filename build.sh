@@ -13,7 +13,7 @@ header(){
 	cat <<-EOH
 	#!/usr/bin/env bash
 	######################################################################
-	# DO NOT MODIFY : ARTIFACT of '$1.tpl'
+	# DO NOT MODIFY : ARTIFACT of '$1.tpl' @ $APP_COMMIT
 	######################################################################
 	EOH
 }

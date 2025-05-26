@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ######################################################################
-# DO NOT MODIFY : ARTIFACT of 'podman-provision-user.sh.tpl'
+# DO NOT MODIFY : ARTIFACT of 'podman-provision-user.sh.tpl' @ 7bbbd3a
 ######################################################################
 app=podman
 admins=ad-linux-sudoers

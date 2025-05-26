@@ -33,6 +33,7 @@ export UTC      := $(shell date '+%Y-%m-%dT%H.%M.%Z')
 ##############################################################################
 ## Application declarations
 
+export APP_COMMIT              := $(shell git show --oneline -s |cut -d' ' -f1)
 export APP_NAME                := podman
 export APP_PROVISION_USER      := ${APP_NAME}-provision-user.sh
 export APP_PROVISION_SUDOERS   := ${APP_NAME}-provision-sudoers.sh
