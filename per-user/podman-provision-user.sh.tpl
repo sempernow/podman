@@ -135,7 +135,7 @@ grep -q $local_group /etc/subgid || {
 echo -e "\n✅  Provision complete.\n"
 
 ## Verify that the domain user can sudo runas the local-proxy user to execute podman in rootless mode.
-echo -e "📦  Verify by running a container using podman via its transparent wrapper, which handles your local-proxy configuration:"
+echo -e "📦  Verify by running a container using the transparent podman wrapper, /usr/local/bin/podman :"
 su "$domain_user" -c "/usr/local/bin/podman-test.sh $alt_home $img"
 
 exit $? 
