@@ -15,7 +15,7 @@ ok(){
     echo "🔍  Note file owner and group at *host*, though both are 'root' at *container* (above):"
     echo "=== $(whoami)@$(hostname -f)"
     ls -hl $alt_home
-    echo -e '\n🧪  Next, try it out yourself ...
+    echo -e '\n🧪  Next, try it out yourself : Copy and paste ...
 home="$(getent passwd "podman-$(id -un)" |cut -d: -f6)"
 img='"$img"'
 podman run --rm --volume $home:/mnt/home $img sh -c '"'touch /mnt/home/another-test-file;ls -hl /mnt/home'"'
