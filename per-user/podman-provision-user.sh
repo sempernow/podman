@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 ######################################################################
-# DO NOT MODIFY : ARTIFACT of 'podman-provision-user.sh.tpl' @ d331e24
+# DO NOT MODIFY : ARTIFACT of 'podman-provision-user.sh.tpl' @ b82d6ae
 ######################################################################
 app=podman
 admins=ad-linux-sudoers
 group_domain_users=ad-linux-users
-group_proxy_users=proxy-users
+group_proxy_users=local-proxy-users
 img=alpine
 [[ -n "${SUDO_USER:-}" ]] || {
     echo "⚠  USAGE: sudo ${BASH_SOURCE##*/}" >&2
