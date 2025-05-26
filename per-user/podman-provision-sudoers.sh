@@ -34,7 +34,7 @@ tee $sudoers <<EOH
 Defaults:%$domain secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
 %$domain ALL=(ALL) $self_provision_script
 Defaults:$domain env_keep += "HOME XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS"
-%$domain ALL=(:$proxy) NOPASSWD: /usr/bin/$app
+%$domain ALL=(ALL) NOPASSWD: /usr/bin/$app
 EOH
 
 chown root:root $sudoers
