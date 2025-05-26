@@ -62,7 +62,8 @@ sudo install.sh
 ```
 
 - [`podman-provision-sudoers.sh`](per-user/podman-provision-sudoers.sh)
-- [`podman-provision-nologin.sh`](per-user/podman-provision-nologin.sh)
+- [`podman-provision-user.sh`](per-user/podman-provision-user.sh)
+- [`podman-test.sh`](per-user/podman-test.sh)
 - [`podman-unprovision-user.sh`](per-user/podman-unprovision-user.sh)
 - [`podman.sh`](per-user/podman.sh)
 
