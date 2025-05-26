@@ -71,7 +71,7 @@ env:
 
 eol :
 	find . -type f ! -path '*/.git/*' -exec dos2unix {} \+
-mode fs : html tree
+mode fs : html 
 	find . -type d ! -path './.git/*' -exec chmod 0755 "{}" \;
 	find . -type f ! -path './.git/*' -exec chmod 0644 "{}" \;
 #	find . -type f ! -path './.git/*' -iname '*.sh' -exec chmod 0755 "{}" \;
