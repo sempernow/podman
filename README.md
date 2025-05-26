@@ -4,7 +4,7 @@
 
 ### 1. Admin user
 
-Modify the [`Makefile`](Makefile) environment to fit yours. 
+__Modify__ the [`Makefile`](Makefile) __environment__ to fit yours. 
 
 ```bash
 make env 
@@ -12,7 +12,7 @@ make env
 - Only `SYS_GROUP_ADMINS` members are allowed to provision (other) AD users.
 - Only `SYS_GROUP_DOMAIN_USERS` members are allowed to __self provision__, unless otherwise privileged.
 
-Install
+__Install__ (Requires root access)
 
 ```bash
 make build
@@ -21,13 +21,13 @@ make install
 
 ### 2. Podman user
 
-Self provision
+__Self provision__
 
 ```bash
 sudo podman-provision-user.sh
 ```
 
-Use
+__Use__
 
 ```bash
 podman $anything
