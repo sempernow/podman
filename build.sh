@@ -25,7 +25,7 @@ tpl2sh(){
         |sed "s,APP_OCI_TEST_IMAGE,${APP_OCI_TEST_IMAGE},g" \
         |sed "s,SYS_GROUP_ADMINS,${SYS_GROUP_ADMINS},g" \
         |sed "s,SYS_GROUP_DOMAIN_USERS,${SYS_GROUP_DOMAIN_USERS},g" \
-        |sed "s,SYS_GROUP_LOCAL_PROXY,${SYS_GROUP_LOCAL_PROXY},g" \
+        |sed "s,SYS_GROUP_PROXY_USERS,${SYS_GROUP_PROXY_USERS},g" \
         |sed -E '/^[[:space:]]*#/d; s/[[:space:]]+#.*$//' \
         |sed '/^[[:space:]]*$/d' \
         |tee $tmp

@@ -26,7 +26,7 @@ app=${APP_NAME}
 sudoers=/etc/sudoers.d/$app
 self_provision_script=/usr/local/bin/${APP_PROVISION_USER}
 domain=${SYS_GROUP_DOMAIN_USERS}
-proxy=${SYS_GROUP_LOCAL_PROXY}
+proxy=${SYS_GROUP_PROXY_USERS}
 
 getent group $proxy || groupadd -r $proxy
 

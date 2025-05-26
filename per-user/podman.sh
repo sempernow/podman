@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ######################################################################
-# DO NOT MODIFY : ARTIFACT of 'podman.sh.tpl' @ 931be0c
+# DO NOT MODIFY : ARTIFACT of 'podman.sh.tpl' @ 6e917cc
 ######################################################################
 set -euo pipefail
 bin=/usr/bin/podman
@@ -43,7 +43,7 @@ dbus_socket="$runtime_dir/bus"
     echo -e "\nRun: loginctl enable-linger $proxy_user" >&2
     exit 55
 }
-logger "Script '$BASH_SOURCE' was invoked by '$invoking_user' to run 'sudo -u $proxy_user ...' with args: $*"
+logger "Script '$BASH_SOURCE' invoked by '$invoking_user' to runas 'sudo -u $proxy_user ...' with args: $*"
 export HOME="$home"
 export XDG_RUNTIME_DIR="$runtime_dir"
 export DBUS_SESSION_BUS_ADDRESS="unix:path=$dbus_socket"

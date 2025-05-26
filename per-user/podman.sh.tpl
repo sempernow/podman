@@ -75,7 +75,7 @@ dbus_socket="$runtime_dir/bus"
 }
 
 # Log this event
-logger "Script '$BASH_SOURCE' was invoked by '$invoking_user' to run 'sudo -u $proxy_user ...' with args: $*"
+logger "Script '$BASH_SOURCE' invoked by '$invoking_user' to runas 'sudo -u $proxy_user ...' with args: $*"
 
 # Declare the per-user environment required by Podman's rootless mode.
 export HOME="$home"
