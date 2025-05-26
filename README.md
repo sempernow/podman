@@ -58,7 +58,7 @@ There are many corners to this envelope:
     - Podman does not configure remote (AD) users.
     - Podman creates per-user namespaces using subids only if
       user is local, regular (non-system), and created after Podman is installed.
-    - An active fully-provisioned login shell is required to initialized a rootless Podman session.
+    - An active fully-provisioned login shell is expected by Podman to initialize a rootless session.
         - `HOME` is set.
         - `XDG_RUNTIME_DIR` is set.
         - DBus Session Bus starts.
@@ -77,15 +77,15 @@ There are many corners to this envelope:
           these environment settings must be __explicitly declared__:
             ```bash
             cd /tmp
-            sudo -u podman-$USER -- env \
+            sudo -u podman-$USER \
                 HOME=/home/podman-$USER \
                 XDG_RUNTIME_DIR=/run/user/$(id -u podman-$USER) \
                 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u podman-$USER)/bus \
-                podman ...
+                /usr/bin/podman "$@"
             ```
             - [`podman.sh`](per-user/podman.sh)
             - Tight security by locking down allowed commands using a group-scoped sudoers drop-in file.
-                - [`provision-podman-sudoers.sh`](per-user/provision-podman-sudoers.sh)
+                - [`provision-podman-sudoers.sh`](per-user/podman-provision-sudoers.sh)
     2. __Login shell__ (`adduser --shell /bin/bash ...`)
         - Using SSH shell to trigger an active login session,
         which provides a __fully functional__ rootless Podman environment.
