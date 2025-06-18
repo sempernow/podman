@@ -97,3 +97,84 @@ There are many corners to this envelope:
 - Privileged ports, e.g., 80 (HTTP) and 443 (HTTPS), are not allowed.
 
 ---
+
+## Q:
+
+It seems __Tenable scanner__ declares the namespaced Podman resources some kind of security violation for having owner and/or group that do not exist on host. 
+Is this a known issue, or is something misconfigured?
+
+## A:
+
+Yes, this **is a known situation** when working with **Podman (especially in rootless mode or when using UID/GID namespaces)** — but whether it *should* be declared a security violation depends on **scanner policy tuning** and **context**.
+
+### 🔍 Why This Happens
+
+When you use **namespaced or rootless containers**, Podman maps container UIDs/GIDs to host UIDs/GIDs using **`/etc/subuid` and `/etc/subgid`** ranges. This mapping allows unprivileged users to run containers as if they were root inside the container.
+
+However:
+
+* Files created inside the container may appear **on the host filesystem** with UID/GID values that **do not map to real users/groups** on the host — because they're from the **mapped range**, not standard system UIDs.
+* For example, you might see files owned by UID **100000+** or GID **100000+** — these are **valid in the container's view**, but not recognizable to `ls -l` or to scanners on the host.
+
+Tenable and similar scanners (like Nessus, OpenSCAP, etc.) often flag such ownership as a **misconfiguration or security concern** because they see these as:
+
+* Orphaned files (no corresponding `/etc/passwd` or `/etc/group` entry),
+* Files with unexpected ownership that may allow privilege escalation if not properly sandboxed.
+
+---
+
+### ✅ Is It Misconfigured?
+
+**Not necessarily** — if:
+
+* You're using **rootless Podman** with proper `subuid/subgid` mappings,
+* And these files are **within storage paths managed by Podman**, such as `~/.local/share/containers` or `/var/lib/containers`.
+
+Then it's **expected** behavior.
+
+However, it **might be a concern** if:
+
+* You're mounting **container volumes to the host filesystem** outside controlled areas (e.g. shared NFS paths or home directories),
+* Or the files appear in **host-visible paths** and break ACL/SELinux assumptions,
+* Or you haven't configured `subuid/subgid` properly and fallback UIDs are being used.
+
+---
+
+### 🔐 What to Do
+
+Depending on your risk profile and audit requirements:
+
+#### 1. **Tune the Scanner**
+
+* Tell Tenable to **ignore UID/GID > 65535** for container-managed paths.
+* Whitelist known container storage paths from alerts.
+
+#### 2. **Check Podman UID Mapping**
+
+* Ensure each container-running user has proper entries in `/etc/subuid` and `/etc/subgid`:
+
+  ```bash
+  grep ^$USER: /etc/subuid
+  grep ^$USER: /etc/subgid
+  ```
+
+#### 3. **Control Mounts**
+
+* Avoid mounting sensitive host paths into containers without remapping.
+* Use `--userns=keep-id` or `--uidmap` only when needed.
+
+#### 4. **Use `fuse-overlayfs` or Shadow Mapping**
+
+* If container data must appear on the host, use `fuse-overlayfs` or shadow mounts to present ownership cleanly.
+
+#### 5. **Use Namespace-Aware Scanners**
+
+* Some modern tools (like OpenSCAP in container-aware mode) understand user namespaces and will not falsely flag these.
+
+---
+
+### Summary
+
+> **Not a misconfiguration**, but a **false positive** unless containers are breaking isolation or leaking UID-mapped files into sensitive host paths. Adjust scanner policies and review your volume mounts and UID mappings.
+
+Let me know if you'd like to confirm your current `subuid/subgid` mappings or sanitize paths from scanner alerts.
