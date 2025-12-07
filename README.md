@@ -1,15 +1,16 @@
 # Rootless Podman
 
+## UPDATE
+
 WS2019 to RHEL integration 
 
-- https://chatgpt.com/share/688d52e4-f120-8009-b0b7-5f77c95456fc
+Use IdM, RedHat's branded FreeIPA, to manage Podman subid assignments for domain users.
 
-Podman subid assignments for domain users
-
-- https://freeipa.readthedocs.io/en/latest/designs/subordinate-ids.html
 - https://www.julioloayzam.com/blog/podman-freeipa-and-subuids/
+- https://freeipa.readthedocs.io/en/ipa-4-11/designs/subordinate-ids.html
+- https://access.redhat.com/solutions/6961540
 
-
+---
 
 ## TL;DR
 
@@ -50,12 +51,6 @@ podman $anything
 fully-functional rootless Podman solution for non-local (AD) 
 users seeking a containerized-delvelopment environmnet](https://access.redhat.com/solutions/6216591). 
 This local-proxy scheme is a workaround.
-
-__UPDATE__: Use IdM, RedHat's branded FreeIPA, to manage subids.
-
-- https://www.julioloayzam.com/blog/podman-freeipa-and-subuids/
-- https://freeipa.readthedocs.io/en/ipa-4-11/designs/subordinate-ids.html
-- https://access.redhat.com/solutions/6961540
 
 ## What
 
